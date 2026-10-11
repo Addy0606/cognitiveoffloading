@@ -1,0 +1,35 @@
+CLASSIFIER EVALUATION REPORT
+============================================================
+
+Model: microsoft/deberta-base
+Epochs: 3
+Batch Size: 16
+Learning Rate: 2e-05
+Random Seed: 42
+
+Training samples: 294
+Validation samples: 110
+Test samples: 96
+
+Accuracy:  0.5833
+Precision: 0.0000
+Recall:    0.0000
+F1:        0.0000
+
+Classification Report:
+              precision    recall  f1-score   support
+
+    Learning       0.58      1.00      0.74        56
+  Extraction       0.00      0.00      0.00        40
+
+    accuracy                           0.58        96
+   macro avg       0.29      0.50      0.37        96
+weighted avg       0.34      0.58      0.43        96
+
+
+------------------------------------------------------------
+LIMITATIONS:
+- Trained on only 294 examples
+- Small dataset risks overfitting
+- Generalization to unseen domains is unverified
+- WARNING: Trained on SYNTHETIC data, not real student messages

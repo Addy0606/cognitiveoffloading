@@ -1,0 +1,175 @@
+{
+  "evaluation_type": "automated_heuristic",
+  "warning": "Automated scoring \u2014 not equivalent to human evaluation",
+  "num_queries": 20,
+  "adaptive_wins": 0,
+  "ties": 20,
+  "baseline_wins": 0,
+  "avg_baseline_score": 4.0,
+  "avg_adaptive_score": 4.0,
+  "t_statistic": 0.0,
+  "p_value": 1.0,
+  "effect_size": 0.0,
+  "per_query_scores": [
+    {
+      "query": "Just do it for me",
+      "extraction_score": 0.47555243968963623,
+      "action": "SOCRATIC",
+      "baseline_score": 4,
+      "adaptive_score": 4,
+      "winner": "tie"
+    },
+    {
+      "query": "Just do it for me",
+      "extraction_score": 0.47555243968963623,
+      "action": "SOCRATIC",
+      "baseline_score": 4,
+      "adaptive_score": 4,
+      "winner": "tie"
+    },
+    {
+      "query": "Just do it for me",
+      "extraction_score": 0.47555243968963623,
+      "action": "SOCRATIC",
+      "baseline_score": 4,
+      "adaptive_score": 4,
+      "winner": "tie"
+    },
+    {
+      "query": "Just tell me how to do it",
+      "extraction_score": 0.4754960834980011,
+      "action": "SOCRATIC",
+      "baseline_score": 4,
+      "adaptive_score": 4,
+      "winner": "tie"
+    },
+    {
+      "query": "Just tell me how to do it",
+      "extraction_score": 0.4754960834980011,
+      "action": "SOCRATIC",
+      "baseline_score": 4,
+      "adaptive_score": 4,
+      "winner": "tie"
+    },
+    {
+      "query": "Just show me what to write",
+      "extraction_score": 0.4745728373527527,
+      "action": "SOCRATIC",
+      "baseline_score": 4,
+      "adaptive_score": 4,
+      "winner": "tie"
+    },
+    {
+      "query": "Tell me the solution",
+      "extraction_score": 0.4745618999004364,
+      "action": "SOCRATIC",
+      "baseline_score": 4,
+      "adaptive_score": 4,
+      "winner": "tie"
+    },
+    {
+      "query": "Tell me the steps without me thinking",
+      "extraction_score": 0.47426438331604004,
+      "action": "SOCRATIC",
+      "baseline_score": 4,
+      "adaptive_score": 4,
+      "winner": "tie"
+    },
+    {
+      "query": "Tell me the steps without me thinking",
+      "extraction_score": 0.47426438331604004,
+      "action": "SOCRATIC",
+      "baseline_score": 4,
+      "adaptive_score": 4,
+      "winner": "tie"
+    },
+    {
+      "query": "Give me a working solution",
+      "extraction_score": 0.4730084240436554,
+      "action": "SOCRATIC",
+      "baseline_score": 4,
+      "adaptive_score": 4,
+      "winner": "tie"
+    },
+    {
+      "query": "Do my homework please",
+      "extraction_score": 0.47255033254623413,
+      "action": "SOCRATIC",
+      "baseline_score": 4,
+      "adaptive_score": 4,
+      "winner": "tie"
+    },
+    {
+      "query": "Do my homework please",
+      "extraction_score": 0.47255033254623413,
+      "action": "SOCRATIC",
+      "baseline_score": 4,
+      "adaptive_score": 4,
+      "winner": "tie"
+    },
+    {
+      "query": "Do my homework please",
+      "extraction_score": 0.47255033254623413,
+      "action": "SOCRATIC",
+      "baseline_score": 4,
+      "adaptive_score": 4,
+      "winner": "tie"
+    },
+    {
+      "query": "Stop explaining, just give the code",
+      "extraction_score": 0.47222256660461426,
+      "action": "SOCRATIC",
+      "baseline_score": 4,
+      "adaptive_score": 4,
+      "winner": "tie"
+    },
+    {
+      "query": "I'm stuck, give me the code",
+      "extraction_score": 0.47178134322166443,
+      "action": "SOCRATIC",
+      "baseline_score": 4,
+      "adaptive_score": 4,
+      "winner": "tie"
+    },
+    {
+      "query": "I need the answer now",
+      "extraction_score": 0.4714163839817047,
+      "action": "SOCRATIC",
+      "baseline_score": 4,
+      "adaptive_score": 4,
+      "winner": "tie"
+    },
+    {
+      "query": "Can you solve this for me?",
+      "extraction_score": 0.4710981249809265,
+      "action": "SOCRATIC",
+      "baseline_score": 4,
+      "adaptive_score": 4,
+      "winner": "tie"
+    },
+    {
+      "query": "What's the formula?",
+      "extraction_score": 0.47044995427131653,
+      "action": "SOCRATIC",
+      "baseline_score": 4,
+      "adaptive_score": 4,
+      "winner": "tie"
+    },
+    {
+      "query": "I don't want to figure it out, just tell me",
+      "extraction_score": 0.4703645408153534,
+      "action": "SOCRATIC",
+      "baseline_score": 4,
+      "adaptive_score": 4,
+      "winner": "tie"
+    },
+    {
+      "query": "I don't want to figure it out, just tell me",
+      "extraction_score": 0.4703645408153534,
+      "action": "SOCRATIC",
+      "baseline_score": 4,
+      "adaptive_score": 4,
+      "winner": "tie"
+    }
+  ]
+}

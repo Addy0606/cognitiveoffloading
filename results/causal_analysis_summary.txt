@@ -1,0 +1,61 @@
+TUTOR RESPONSE TYPE ANALYSIS
+============================================================
+
+IMPORTANT DISCLAIMER:
+This analysis describes ASSOCIATIONS between tutor response types
+and subsequent student behavior. It does NOT establish causation.
+Confounders (topic difficulty, student ability, etc.) are uncontrolled.
+
+Total sequences analyzed: 163
+Number of dialogues: 50
+
+
+REDIRECT:
+----------------------------------------
+  count: 25
+  mean_reward: -0.011
+  std_reward: 0.2037
+  median_reward: -0.0015
+  positive_reward_pct: 24.0
+  negative_reward_pct: 28.0
+  mean_extraction_before: 0.2791
+  mean_extraction_after: 0.2901
+
+SCAFFOLD:
+----------------------------------------
+  count: 72
+  mean_reward: 0.0132
+  std_reward: 0.2029
+  median_reward: 0.0011
+  positive_reward_pct: 27.8
+  negative_reward_pct: 23.6
+  mean_extraction_before: 0.2951
+  mean_extraction_after: 0.2818
+
+SOCRATIC:
+----------------------------------------
+  count: 54
+  mean_reward: 0.0345
+  std_reward: 0.1898
+  median_reward: 0.0014
+  positive_reward_pct: 29.6
+  negative_reward_pct: 16.7
+  mean_extraction_before: 0.3015
+  mean_extraction_after: 0.267
+
+DELAY:
+----------------------------------------
+  count: 12
+  mean_reward: -0.1417
+  std_reward: 0.1399
+  median_reward: -0.1418
+  positive_reward_pct: 0.0
+  negative_reward_pct: 50.0
+  mean_extraction_before: 0.2102
+  mean_extraction_after: 0.352
+
+
+Interpretation Notes:
+- Positive reward = extraction score decreased (student shifted toward learning)
+- Negative reward = extraction score increased (student shifted toward extraction)
+- These patterns may reflect confounders, not causal effects

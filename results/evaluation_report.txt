@@ -1,0 +1,18 @@
+POLICY EVALUATION REPORT
+============================================================
+
+Test Set: 20 queries
+Evaluation Method: Automated heuristic (NOT human)
+
+Results:
+  Adaptive superior: 0 (0%)
+  Tie:               20 (100%)
+  Baseline superior: 0 (0%)
+
+Average scores:
+  Baseline: 4.00/5
+  Adaptive: 4.00/5
+
+Statistical test (paired t-test):
+  t=0.000, p=1.0000
+  Effect size (Cohen's d): 0.000
