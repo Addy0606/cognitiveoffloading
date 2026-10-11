@@ -560,11 +560,11 @@ class ExtractionClassifier:
         Args:
             load_dir: Directory containing saved model artifacts.
         """
-        from transformers import AutoModel, AutoTokenizer
-
         load_path = Path(load_dir)
         if not load_path.exists():
             raise FileNotFoundError(f"Model directory not found: {load_path}")
+
+        from transformers import AutoModel, AutoTokenizer
 
         # Load config
         config_path = load_path / "config.json"
