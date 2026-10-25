@@ -59,6 +59,10 @@ def main():
     parser = argparse.ArgumentParser(description="Interactive tutoring demo")
     parser.add_argument("--classifier", type=str, default="models/classifier_v1")
     parser.add_argument("--policy", type=str, default="models/policy_network_v1.pth")
+    parser.add_argument("--llm-provider", type=str, default=None,
+                        help="LLM provider: 'ollama', 'openai', or 'fallback'")
+    parser.add_argument("--llm-model", type=str, default=None,
+                        help="LLM model name (e.g., 'llama3.2', 'qwen2.5:1.5b')")
     parser.add_argument("--seed", type=int, default=42)
 
     args = parser.parse_args()
@@ -66,7 +70,10 @@ def main():
     set_seed(args.seed)
 
     # Initialize tutor
-    tutor = AdaptiveTutor()
+    tutor = AdaptiveTutor(
+        llm_provider=args.llm_provider,
+        llm_model=args.llm_model,
+    )
 
     # Load models if available
     classifier_path = Path(args.classifier)

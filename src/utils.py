@@ -236,6 +236,9 @@ def call_llm(
     if provider == "openai":
         return _call_openai(system_prompt, user_message, model, temperature)
 
+    if provider == "ollama":
+        return _call_ollama(system_prompt, user_message, model, temperature)
+
     raise ValueError(f"Unknown LLM provider: {provider}")
 
 
@@ -323,19 +326,93 @@ def _fallback_response(system_prompt: str, user_message: str) -> str:
         )
 
 
-def get_llm_provider() -> str:
+def _call_ollama(
+    system_prompt: str,
+    user_message: str,
+    model: Optional[str] = None,
+    temperature: float = 0.0,
+) -> str:
     """
-    Determine which LLM provider to use based on available API keys.
+    Call a local Ollama instance via its REST API.
+
+    Args:
+        system_prompt: System prompt with pedagogical instructions.
+        user_message: Student query message.
+        model: Model name (defaults to OLLAMA_MODEL or 'llama3.2').
+        temperature: Generation temperature.
 
     Returns:
-        'openai' if OPENAI_API_KEY is set, otherwise 'fallback'.
+        Generated text response.
     """
+    import json
+    import urllib.error
+    import urllib.request
+
+    base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/")
+    model_name = model or os.getenv("OLLAMA_MODEL", "llama3.2")
+
+    payload = {
+        "model": model_name,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_message},
+        ],
+        "stream": False,
+        "options": {"temperature": temperature},
+    }
+    data = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(
+        f"{base_url}/api/chat",
+        data=data,
+        headers={"Content-Type": "application/json"},
+    )
+
+    try:
+        with urllib.request.urlopen(req, timeout=120) as resp:
+            result = json.loads(resp.read().decode("utf-8"))
+            return result.get("message", {}).get("content", "").strip()
+    except urllib.error.URLError as e:
+        raise RuntimeError(
+            f"Failed to connect to Ollama at {base_url}. Ensure Ollama is running "
+            f"and model '{model_name}' is available. Error: {e}"
+        )
+
+
+def get_llm_provider() -> str:
+    """
+    Determine which LLM provider to use based on available configuration.
+
+    Order of precedence:
+    1. Explicit LLM_PROVIDER in environment ("ollama", "openai", "fallback")
+    2. OPENAI_API_KEY if present
+    3. Ollama if running on localhost
+    4. Fallback templates
+
+    Returns:
+        'ollama', 'openai', or 'fallback'.
+    """
+    provider_env = os.getenv("LLM_PROVIDER", "").lower().strip()
+    if provider_env in ("ollama", "openai", "fallback"):
+        return provider_env
+
     api_key = os.getenv("OPENAI_API_KEY")
     if api_key and api_key != "your-key-here":
         return "openai"
+
+    # Check if Ollama is accessible
+    base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/")
+    try:
+        import urllib.request
+        req = urllib.request.Request(f"{base_url}/api/tags")
+        with urllib.request.urlopen(req, timeout=1) as resp:
+            if resp.status == 200:
+                return "ollama"
+    except Exception:
+        pass
+
     logger.warning(
-        "No LLM API key found. Using template-based fallback responses. "
-        "Set OPENAI_API_KEY in .env for real LLM integration."
+        "No active LLM provider found (OpenAI key or Ollama). "
+        "Using template-based fallback responses."
     )
     return "fallback"
 

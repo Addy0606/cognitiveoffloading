@@ -277,7 +277,7 @@ class TestGetLLMProvider:
     def test_returns_string(self):
         provider = get_llm_provider()
         assert isinstance(provider, str)
-        assert provider in ["openai", "fallback"]
+        assert provider in ["openai", "fallback", "ollama"]
 
 
 # ---------------------------------------------------------------
