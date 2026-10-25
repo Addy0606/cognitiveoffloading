@@ -207,6 +207,18 @@ class ExtractionClassifier:
             probs = torch.softmax(logits, dim=-1)
             extraction_prob = probs[0, 1].item()  # P(extraction)
 
+        # Hybrid rule guardrail for explicit extraction demands
+        msg_lower = message.lower()
+        extraction_cues = [
+            "just write", "just give me", "don't explain", "dont explain",
+            "do it for me", "solve this for me", "tell me the solution",
+            "give me the answer", "give me the code", "paste the code",
+            "paste the function", "write the code", "write the complete",
+            "do my homework", "what's the answer", "whats the answer"
+        ]
+        if any(cue in msg_lower for cue in extraction_cues):
+            extraction_prob = max(extraction_prob, 0.88)
+
         return extraction_prob
 
     def predict_batch(self, messages: List[str]) -> List[float]:
@@ -251,13 +263,25 @@ class ExtractionClassifier:
                     input_ids=encoding["input_ids"],
                     attention_mask=encoding["attention_mask"],
                 )
-                cls_embeddings = outputs.last_hidden_state[:, 0, :]
-                logits = self.head(cls_embeddings)
+                cls_embedding = outputs.last_hidden_state[:, 0, :]
+                logits = self.head(cls_embedding)
                 probs = torch.softmax(logits, dim=-1)
-                extraction_probs = probs[:, 1].cpu().tolist()
+                extraction_probs = probs[:, 1].tolist()
 
-            for idx, prob in zip(valid_indices, extraction_probs):
-                results.append((idx, prob))
+            extraction_cues = [
+                "just write", "just give me", "don't explain", "dont explain",
+                "do it for me", "solve this for me", "tell me the solution",
+                "give me the answer", "give me the code", "paste the code",
+                "paste the function", "write the code", "write the complete",
+                "do my homework", "what's the answer", "whats the answer"
+            ]
+
+            for idx, orig_idx in enumerate(valid_indices):
+                score = extraction_probs[idx]
+                msg_lower = valid_messages[idx].lower()
+                if any(cue in msg_lower for cue in extraction_cues):
+                    score = max(score, 0.88)
+                results.append((orig_idx, score))
 
         # Sort by original index and return just probabilities
         results.sort(key=lambda x: x[0])
