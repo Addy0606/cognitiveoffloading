@@ -212,6 +212,7 @@ def call_llm(
     provider: str = "openai",
     model: Optional[str] = None,
     temperature: float = 0.0,
+    conversation_history: Optional[List[Dict[str, str]]] = None,
 ) -> str:
     """
     Call an LLM provider to generate a tutoring response.
@@ -222,6 +223,8 @@ def call_llm(
         provider: LLM provider ("openai" or "fallback").
         model: Model name override. Defaults to OPENAI_MODEL env var or "gpt-4o".
         temperature: Sampling temperature (0.0 = deterministic).
+        conversation_history: Prior conversation turns as a list of
+            {"role": "student"|"tutor", "message": "..."}  dicts.
 
     Returns:
         Generated response string.
@@ -234,10 +237,10 @@ def call_llm(
         return _fallback_response(system_prompt, user_message)
 
     if provider == "openai":
-        return _call_openai(system_prompt, user_message, model, temperature)
+        return _call_openai(system_prompt, user_message, model, temperature, conversation_history)
 
     if provider == "ollama":
-        return _call_ollama(system_prompt, user_message, model, temperature)
+        return _call_ollama(system_prompt, user_message, model, temperature, conversation_history)
 
     raise ValueError(f"Unknown LLM provider: {provider}")
 
@@ -247,6 +250,7 @@ def _call_openai(
     user_message: str,
     model: Optional[str] = None,
     temperature: float = 0.0,
+    conversation_history: Optional[List[Dict[str, str]]] = None,
 ) -> str:
     """Call OpenAI API."""
     api_key = os.getenv("OPENAI_API_KEY")
@@ -263,12 +267,14 @@ def _call_openai(
         client = OpenAI(api_key=api_key)
         model_name = model or os.getenv("OPENAI_MODEL", "gpt-4o")
 
+        # Build messages with conversation history
+        messages = [{"role": "system", "content": system_prompt}]
+        messages.extend(_build_history_messages(conversation_history))
+        messages.append({"role": "user", "content": user_message})
+
         response = client.chat.completions.create(
             model=model_name,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_message},
-            ],
+            messages=messages,
             temperature=temperature,
             max_tokens=512,
         )
@@ -326,11 +332,34 @@ def _fallback_response(system_prompt: str, user_message: str) -> str:
         )
 
 
+def _build_history_messages(
+    conversation_history: Optional[List[Dict[str, str]]] = None,
+    max_turns: int = 10,
+) -> List[Dict[str, str]]:
+    """
+    Convert internal conversation history into LLM chat messages.
+
+    Keeps the most recent `max_turns` entries to avoid blowing up the
+    context window.  Maps 'student' → 'user' and 'tutor' → 'assistant'.
+    """
+    if not conversation_history:
+        return []
+
+    role_map = {"student": "user", "tutor": "assistant"}
+    # Take only the last N turns
+    recent = conversation_history[-max_turns:]
+    return [
+        {"role": role_map.get(turn["role"], "user"), "content": turn["message"]}
+        for turn in recent
+    ]
+
+
 def _call_ollama(
     system_prompt: str,
     user_message: str,
     model: Optional[str] = None,
     temperature: float = 0.0,
+    conversation_history: Optional[List[Dict[str, str]]] = None,
 ) -> str:
     """
     Call a local Ollama instance via its REST API.
@@ -340,6 +369,7 @@ def _call_ollama(
         user_message: Student query message.
         model: Model name (defaults to OLLAMA_MODEL or 'llama3.2').
         temperature: Generation temperature.
+        conversation_history: Prior turns for multi-turn context.
 
     Returns:
         Generated text response.
@@ -351,12 +381,14 @@ def _call_ollama(
     base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/")
     model_name = model or os.getenv("OLLAMA_MODEL", "llama3.2")
 
+    # Build messages: system → history → current user message
+    messages = [{"role": "system", "content": system_prompt}]
+    messages.extend(_build_history_messages(conversation_history))
+    messages.append({"role": "user", "content": user_message})
+
     payload = {
         "model": model_name,
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_message},
-        ],
+        "messages": messages,
         "stream": False,
         "options": {"temperature": temperature},
     }

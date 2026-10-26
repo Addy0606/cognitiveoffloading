@@ -1,11 +1,11 @@
 {
-  "total_episodes": 50,
-  "avg_reward": 0.01676160901784897,
-  "std_reward": 0.20824852050082354,
-  "avg_reward_last_50": 0.01676160901784897,
-  "max_reward": 0.2917206883430481,
-  "min_reward": -0.2983149290084839,
-  "current_epsilon": 0.15566251141372844,
+  "total_episodes": 500,
+  "avg_reward": 0.18768528634428974,
+  "std_reward": 0.20412862755389255,
+  "avg_reward_last_50": 0.21671072013378143,
+  "max_reward": 0.7028921294212341,
+  "min_reward": -0.40949967980384827,
+  "current_epsilon": 0.05,
   "data_source": "data\\studychat_full.csv",
   "classifier_source": "models\\classifier_v1",
   "note": "Trained with offline Q-learning on observed dialogue transitions. Rewards reflect observed extraction score changes, not causal effects of policy actions."

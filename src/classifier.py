@@ -214,7 +214,10 @@ class ExtractionClassifier:
             "do it for me", "solve this for me", "tell me the solution",
             "give me the answer", "give me the code", "paste the code",
             "paste the function", "write the code", "write the complete",
-            "do my homework", "what's the answer", "whats the answer"
+            "do my homework", "what's the answer", "whats the answer",
+            "give me the solution", "give me the whole solution",
+            "give me the full code", "give me the complete solution",
+            "the whole solution", "the entire code", "whole code"
         ]
         if any(cue in msg_lower for cue in extraction_cues):
             extraction_prob = max(extraction_prob, 0.88)

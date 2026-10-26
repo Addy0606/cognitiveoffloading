@@ -65,6 +65,8 @@ class AdaptiveTutor:
         self.llm_provider = llm_provider or get_llm_provider()
         self.llm_model = llm_model
         self.turn_number = 0
+        self.struggle_turns = 0
+        self.is_post_break = False
         self.conversation_history: List[Dict[str, str]] = []
 
     def load_models(
@@ -145,6 +147,21 @@ class AdaptiveTutor:
         if conversation_history:
             self.conversation_history = conversation_history
 
+        msg_lower = student_message.lower().strip()
+
+        # Step 0: Check if student is returning from break or switching topics (Idea 1)
+        break_return_cues = [
+            "i'm back", "im back", "i am back", "took a break", "after break",
+            "from break", "rested", "feeling better", "ready now", "let's try again",
+            "lets try again", "new topic", "next problem", "next question",
+            "another problem", "different problem", "start fresh", "reset"
+        ]
+        is_returning = any(cue in msg_lower for cue in break_return_cues)
+        if is_returning:
+            logger.info("Student returned from break or switched topic — resetting struggle counter")
+            self.struggle_turns = 0
+            self.is_post_break = True
+
         # Step 1: Compute extraction probability
         self.classifier.initialize()
         extraction_score = self.classifier.predict(student_message)
@@ -153,13 +170,27 @@ class AdaptiveTutor:
         engagement_details = calculate_engagement_detailed(student_message)
         engagement_score = engagement_details["total"]
 
-        # Step 3: Get text embedding and construct state vector
+        # Step 2b: Update dynamic struggle counter (Idea 2)
+        # If student shows good engagement or asks thoughtful questions, decrease struggle
+        # If student persistently demands code or stays stuck, increase struggle
+        if is_returning:
+            self.struggle_turns = 0
+        elif engagement_score > 0.20 or extraction_score < 0.25:
+            # Active learning / productive engagement — decay struggle count
+            self.struggle_turns = max(0, self.struggle_turns - 1)
+        elif extraction_score > 0.6 or engagement_score < 0.08:
+            # High extraction or zero-effort short message — accumulate struggle
+            self.struggle_turns += 1
+
+        effective_turns = self.struggle_turns if not self.is_post_break else 0
+
+        # Step 3: Get text embedding and construct state vector using effective turns
         embedding = self.classifier.get_embedding(student_message)
         state = encode_state(
             message_embedding=embedding,
             extraction_score=extraction_score,
             engagement_score=engagement_score,
-            turn_number=self.turn_number,
+            turn_number=effective_turns,
         )
 
         # Step 4: Get Q-values and select action
@@ -170,6 +201,16 @@ class AdaptiveTutor:
             q_values = [0.0, 0.0, 0.0, 0.0]
             action_id = -1  # baseline mode
 
+        # Step 4b: Apply rule-based guardrails to override undertrained policy
+        if use_policy:
+            action_id = self._apply_guardrails(
+                action_id,
+                student_message,
+                extraction_score,
+                engagement_score,
+                is_returning=is_returning,
+            )
+
         action_name = get_action_name(action_id) if action_id >= 0 else "BASELINE"
 
         # Step 5: Generate system prompt
@@ -178,7 +219,7 @@ class AdaptiveTutor:
         else:
             system_prompt = get_baseline_prompt()
 
-        # Step 6: Call LLM
+        # Step 6: Call LLM (with conversation history for multi-turn context)
         is_fallback = self.llm_provider == "fallback"
         try:
             tutor_response = call_llm(
@@ -186,6 +227,7 @@ class AdaptiveTutor:
                 user_message=student_message,
                 provider=self.llm_provider,
                 model=self.llm_model,
+                conversation_history=self.conversation_history,
             )
         except Exception as e:
             logger.error(f"LLM call failed: {e}. Using fallback.")
@@ -239,7 +281,136 @@ class AdaptiveTutor:
     def reset_conversation(self) -> None:
         """Reset the conversation state for a new dialogue."""
         self.turn_number = 0
+        self.struggle_turns = 0
+        self.is_post_break = False
         self.conversation_history = []
+
+    def _apply_guardrails(
+        self,
+        policy_action: int,
+        student_message: str,
+        extraction_score: float,
+        engagement_score: float,
+        is_returning: bool = False,
+    ) -> int:
+        """
+        Rule-based safety net that overrides the RL policy for obvious cases.
+
+        The RL policy is trained with offline Q-learning. These guardrails catch
+        clear-cut pedagogical situations to ensure reliable responses.
+
+        Override rules (in priority order):
+            0. Return from break / fresh start → REDIRECT or SCAFFOLD (never duplicate DELAY)
+            1. High extraction (>0.7) → REDIRECT (action 0)
+            2. Medium extraction (>0.4) + zero engagement → REDIRECT (action 0)
+            3. Dismissive/lazy short messages → REDIRECT (action 0)
+            4. Student explicitly says stuck/confused/lost → SCAFFOLD (action 1)
+            5. Student shows partial understanding → SOCRATIC (action 2)
+            6. Rushed, impatient messages → DELAY (action 3)
+
+        Args:
+            policy_action: The action chosen by the RL policy.
+            student_message: The student's raw message text.
+            extraction_score: Classifier extraction probability.
+            engagement_score: Engagement heuristic score.
+            is_returning: Whether student is returning from break or switching topic.
+
+        Returns:
+            Final action ID (possibly overridden).
+        """
+        msg_lower = student_message.lower().strip()
+        word_count = len(msg_lower.split())
+
+        # --- Rule 0: Return from break or fresh topic start ---
+        if is_returning:
+            if extraction_score > 0.4:
+                logger.info("Guardrail override: Post-break extraction demand → REDIRECT")
+                return 0  # REDIRECT
+            if policy_action == 3:
+                logger.info("Guardrail override: Student returned from break, preventing duplicate DELAY → SCAFFOLD")
+                return 1  # SCAFFOLD
+
+        if self.is_post_break:
+            self.is_post_break = False
+            if extraction_score > 0.4:
+                logger.info("Guardrail override: Post-break extraction attempt → REDIRECT")
+                return 0  # REDIRECT
+
+        # --- Rule 1: High extraction (>0.7) → REDIRECT ---
+        if extraction_score > 0.7:
+            if policy_action != 0:
+                logger.info(
+                    f"Guardrail override: {policy_action}→REDIRECT "
+                    f"(extraction={extraction_score:.2f} > 0.7)"
+                )
+            return 0  # REDIRECT
+
+        # --- Rule 2: Medium extraction + zero engagement → REDIRECT ---
+        if extraction_score > 0.4 and engagement_score < 0.05:
+            # Dismissive short replies like "no idea", "idk", "whatever"
+            dismissive_cues = [
+                "no idea", "idk", "i don't know", "i dont know", "whatever",
+                "just tell me", "no clue", "dunno", "nope", "can't", "cant",
+                "i give up", "too hard", "impossible",
+            ]
+            if any(cue in msg_lower for cue in dismissive_cues) or word_count <= 3:
+                if policy_action != 0:
+                    logger.info(
+                        f"Guardrail override: {policy_action}→REDIRECT "
+                        f"(extraction={extraction_score:.2f}, engagement={engagement_score:.2f}, "
+                        f"dismissive short reply)"
+                    )
+                return 0  # REDIRECT
+
+        # --- Rule 3: Student explicitly stuck → SCAFFOLD ---
+        stuck_cues = [
+            "i'm stuck", "im stuck", "i am stuck", "don't understand",
+            "dont understand", "don't get it", "dont get it", "confused",
+            "i'm lost", "im lost", "help me understand", "can you explain",
+            "break it down", "where do i start", "how do i begin",
+            "not sure how to", "struggling with", "having trouble",
+            "can you help me", "i need help", "please help",
+        ]
+        if any(cue in msg_lower for cue in stuck_cues) and extraction_score < 0.7:
+            if policy_action != 1:
+                logger.info(
+                    f"Guardrail override: {policy_action}→SCAFFOLD "
+                    f"(student explicitly stuck)"
+                )
+            return 1  # SCAFFOLD
+
+        # --- Rule 4: Student shows partial understanding → SOCRATIC ---
+        understanding_cues = [
+            "i think", "i believe", "my understanding", "i tried",
+            "i wrote", "i attempted", "here's my code", "here is my code",
+            "i got", "my approach", "i noticed", "i expected",
+            "i'm not sure why", "im not sure why", "but why",
+            "how come", "what if", "would it work if",
+        ]
+        if any(cue in msg_lower for cue in understanding_cues) and extraction_score < 0.5:
+            if policy_action != 2:
+                logger.info(
+                    f"Guardrail override: {policy_action}→SOCRATIC "
+                    f"(student shows partial understanding)"
+                )
+            return 2  # SOCRATIC
+
+        # --- Rule 5: Rushed, impatient messages → DELAY ---
+        rush_cues = [
+            "quick question", "real quick", "fast", "asap",
+            "right now", "hurry", "urgent", "one liner",
+            "in one line", "quickly", "briefly",
+        ]
+        if any(cue in msg_lower for cue in rush_cues) and word_count < 15:
+            if policy_action != 3:
+                logger.info(
+                    f"Guardrail override: {policy_action}→DELAY "
+                    f"(rushed/impatient message)"
+                )
+            return 3  # DELAY
+
+        # No override — trust the policy
+        return policy_action
 
     def _log_interaction(
         self,
