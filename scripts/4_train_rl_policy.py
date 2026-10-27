@@ -45,6 +45,73 @@ from src.utils import (
 logger = logging.getLogger(__name__)
 
 
+def calculate_balanced_reward(
+    action: int,
+    extraction_before: float,
+    extraction_after: float,
+    engagement_before: float,
+    engagement_after: float,
+) -> float:
+    """
+    Balanced multi-objective pedagogical reward function.
+
+    Prevents single-action domination by giving all 4 actions appropriate reward
+    potential for their respective pedagogical contexts:
+
+    Action 0 (REDIRECT):
+      - Positive reward when curbing high extraction (>0.5)
+      - Negative penalty (-0.5) if misapplied to students who are genuinely curious/learning
+
+    Action 1 (SCAFFOLD):
+      - Positive reward (+0.8 to +1.0) when helping a stuck student become engaged
+      - Negative penalty if student is trying to cheat and gets scaffolded inappropriately
+
+    Action 2 (SOCRATIC):
+      - Positive reward (+0.8 to +1.0) when student has conceptual curiosity/partial understanding
+      - Rewards increase in engagement
+
+    Action 3 (DELAY):
+      - Positive reward (+0.8) when a rushed/fatigued student slows down and engages
+    """
+    delta_extraction = extraction_before - extraction_after
+    delta_engagement = engagement_after - engagement_before
+
+    if action == 0:  # REDIRECT
+        if extraction_before > 0.5:
+            # Successfully curbing offloading
+            return float(np.clip(delta_extraction * 1.5 + 0.3, -1.0, 1.0))
+        else:
+            # Inappropriate redirection when student was actually learning
+            return -0.5
+
+    elif action == 1:  # SCAFFOLD
+        if extraction_before < 0.6:
+            # Good scaffolding for stuck or learning student
+            base = 0.6 if engagement_after > 0.1 else 0.3
+            return float(np.clip(base + delta_engagement * 1.5, -1.0, 1.0))
+        else:
+            # Inappropriate scaffold during code extraction attempt
+            return -0.4
+
+    elif action == 2:  # SOCRATIC
+        if extraction_before < 0.55:
+            # Excellent Socratic dialogue with engaged/learning student
+            base = 0.7 if engagement_after >= engagement_before else 0.4
+            return float(np.clip(base + delta_engagement * 2.0, -1.0, 1.0))
+        else:
+            # Socratic on pure code demand
+            return 0.0
+
+    elif action == 3:  # DELAY
+        # Delay is successful if student slows down or returns with good engagement
+        if extraction_after < 0.5 or engagement_after > 0.1:
+            return 0.8
+        else:
+            return 0.2
+
+    return float(delta_extraction)
+
+
 def build_transitions(
     dialogues: List[List[Dict]],
     classifier: ExtractionClassifier,
@@ -54,23 +121,18 @@ def build_transitions(
     """
     Build (state, action, reward, next_state, done) transitions from dialogues.
 
-    Each dialogue becomes an episode. For each student→tutor→student triplet:
-      - state: encode(student_msg, extraction_before, engagement, turn_num)
-      - action: categorize(tutor_response) — the OBSERVED action, not policy's choice
-      - reward: extraction_before - extraction_after
-      - next_state: encode(next_student_msg, extraction_after, engagement_after, turn_num+1)
-      - done: True if last transition in dialogue
-
-    Args:
-        dialogues: List of dialogue turn sequences.
-        classifier: Trained ExtractionClassifier.
-        max_episodes: Maximum number of dialogues to process.
-        max_steps: Maximum transitions per dialogue.
-
-    Returns:
-        List of episodes, each a list of transitions.
+    Uses balanced multi-objective reward and feature caching for fast GPU execution.
     """
     episodes = []
+    feat_cache: Dict[str, Tuple[float, float, torch.Tensor]] = {}
+
+    def get_features(msg: str) -> Tuple[float, float, torch.Tensor]:
+        if msg not in feat_cache:
+            ext = classifier.predict(msg)
+            eng = calculate_engagement(msg)
+            emb = classifier.get_embedding(msg)
+            feat_cache[msg] = (ext, eng, emb)
+        return feat_cache[msg]
 
     for d_idx, dialogue in enumerate(dialogues[:max_episodes]):
         sorted_turns = sorted(dialogue, key=lambda t: t.get("turn_num", 0))
@@ -92,10 +154,8 @@ def build_transitions(
                 msg_after = str(t3.get("message", ""))
 
                 if msg_before.strip() and tutor_msg.strip() and msg_after.strip():
-                    # Compute features for current state
-                    extraction_before = classifier.predict(msg_before)
-                    engagement_before = calculate_engagement(msg_before)
-                    embedding_before = classifier.get_embedding(msg_before)
+                    # Compute features for current state (cached)
+                    extraction_before, engagement_before, embedding_before = get_features(msg_before)
                     state = encode_state(
                         embedding_before, extraction_before,
                         engagement_before, step_count
@@ -104,17 +164,18 @@ def build_transitions(
                     # Observed action from tutor response
                     observed_action = categorize_tutor_response(tutor_msg)
 
-                    # Compute features for next state
-                    extraction_after = classifier.predict(msg_after)
-                    engagement_after = calculate_engagement(msg_after)
-                    embedding_after = classifier.get_embedding(msg_after)
+                    # Compute features for next state (cached)
+                    extraction_after, engagement_after, embedding_after = get_features(msg_after)
                     next_state = encode_state(
                         embedding_after, extraction_after,
                         engagement_after, step_count + 1
                     )
 
-                    # Reward
-                    reward = calculate_reward(extraction_before, extraction_after)
+                    # Balanced reward
+                    reward = calculate_balanced_reward(
+                        observed_action, extraction_before, extraction_after,
+                        engagement_before, engagement_after
+                    )
 
                     # Check if this is the last valid transition
                     is_last = (i + 4 >= len(sorted_turns))
@@ -135,7 +196,7 @@ def build_transitions(
 
     logger.info(
         f"Built {len(episodes)} episodes with "
-        f"{sum(len(e) for e in episodes)} total transitions"
+        f"{sum(len(e) for e in episodes)} total transitions (unique messages cached: {len(feat_cache)})"
     )
     return episodes
 

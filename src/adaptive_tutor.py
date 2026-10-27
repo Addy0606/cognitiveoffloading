@@ -14,6 +14,7 @@ This module integrates:
 """
 
 import logging
+import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -164,6 +165,19 @@ class AdaptiveTutor:
             self.struggle_turns = 0
             self.is_post_break = True
 
+        # Step 0b: Check for pure greeting or pleasantry
+        clean_words = [w for w in re.sub(r"[^\w\s]", "", msg_lower).split()]
+        pure_greetings = {"hi", "hello", "hey", "good morning", "good evening", "good afternoon", "yo", "sup", "greetings"}
+        technical_keywords = ["tree", "graph", "sort", "search", "list", "array", "code", "problem", "solve", "algo", "how", "why", "what", "recursion", "dp", "reverse"]
+        is_greeting = (
+            (msg_lower in pure_greetings or (len(clean_words) <= 3 and any(w in pure_greetings for w in clean_words)))
+            and not any(k in msg_lower for k in technical_keywords)
+        )
+        is_gratitude = (
+            (any(w in ["thanks", "thank"] for w in clean_words) and len(clean_words) <= 4)
+            and not any(k in msg_lower for k in ["code", "problem", "answer", "solve", "how", "why"])
+        )
+
         # Step 1: Compute extraction probability
         self.classifier.initialize()
         extraction_score = self.classifier.predict(student_message)
@@ -175,7 +189,7 @@ class AdaptiveTutor:
         # Step 2b: Update dynamic struggle counter (Idea 2)
         # If student shows good engagement or asks thoughtful questions, decrease struggle
         # If student persistently demands code or stays stuck, increase struggle
-        if is_returning:
+        if is_returning or is_greeting or is_gratitude:
             self.struggle_turns = 0
         elif engagement_score > 0.20 or extraction_score < 0.25:
             # Active learning / productive engagement — decay struggle count
@@ -196,15 +210,27 @@ class AdaptiveTutor:
         )
 
         # Step 4: Get Q-values and select action
-        if use_policy:
+        if is_greeting:
+            q_values = [0.0, 0.0, 0.0, 0.0]
+            action_id = -2
+            action_name = "GREETING"
+            system_prompt = (
+                "You are an encouraging, expert Computer Science and Data Structures tutor. "
+                "The student is greeting you. Respond warmly and politely, welcome them to the session, "
+                "and ask what data structure, algorithm, or topic they would like to learn or practice today."
+            )
+        elif is_gratitude:
+            q_values = [0.0, 0.0, 0.0, 0.0]
+            action_id = -2
+            action_name = "CONVERSATIONAL"
+            system_prompt = (
+                "You are a friendly Computer Science tutor. The student is expressing appreciation or thanking you. "
+                "Acknowledge their effort warmly, and ask if they are ready to proceed with the next step, "
+                "try a related problem, or need any clarification."
+            )
+        elif use_policy:
             q_values = self.rl_trainer.get_q_values(state)
             action_id = self.rl_trainer.select_action(state, greedy=True)
-        else:
-            q_values = [0.0, 0.0, 0.0, 0.0]
-            action_id = -1  # baseline mode
-
-        # Step 4b: Apply rule-based guardrails to override undertrained policy
-        if use_policy:
             action_id = self._apply_guardrails(
                 action_id,
                 student_message,
@@ -212,13 +238,12 @@ class AdaptiveTutor:
                 engagement_score,
                 is_returning=is_returning,
             )
-
-        action_name = get_action_name(action_id) if action_id >= 0 else "BASELINE"
-
-        # Step 5: Generate system prompt
-        if use_policy:
+            action_name = get_action_name(action_id) if action_id >= 0 else "BASELINE"
             system_prompt = get_system_prompt(action_id)
         else:
+            q_values = [0.0, 0.0, 0.0, 0.0]
+            action_id = -1
+            action_name = "BASELINE"
             system_prompt = get_baseline_prompt()
 
         if topic_context and topic_context.strip():
@@ -330,7 +355,7 @@ class AdaptiveTutor:
 
         # --- Rule 0: Return from break or fresh topic start ---
         if is_returning:
-            if extraction_score > 0.4:
+            if extraction_score > 0.7:
                 logger.info("Guardrail override: Post-break extraction demand → REDIRECT")
                 return 0  # REDIRECT
             if policy_action == 3:
@@ -339,7 +364,7 @@ class AdaptiveTutor:
 
         if self.is_post_break:
             self.is_post_break = False
-            if extraction_score > 0.4:
+            if extraction_score > 0.7:
                 logger.info("Guardrail override: Post-break extraction attempt → REDIRECT")
                 return 0  # REDIRECT
 
@@ -354,6 +379,8 @@ class AdaptiveTutor:
                     f"Guardrail escalation: High struggle ({self.struggle_turns} turns) "
                     f"with extraction → DELAY (Action 3)"
                 )
+                # Reset counter to 2 so student isn't trapped in an infinite DELAY nag loop
+                self.struggle_turns = 2
                 return 3  # DELAY
             elif self.struggle_turns >= 3:
                 logger.info(
@@ -369,15 +396,13 @@ class AdaptiveTutor:
                     )
                 return 0  # REDIRECT
 
-        # --- Rule 2: Medium extraction + zero engagement → REDIRECT ---
-        if extraction_score > 0.4 and engagement_score < 0.05:
+        # --- Rule 2: Medium extraction + low engagement short reply → REDIRECT ---
+        if extraction_score > 0.4 and engagement_score <= 0.08:
             # Dismissive short replies like "no idea", "idk", "whatever"
             dismissive_cues = [
-                "no idea", "idk", "i don't know", "i dont know", "whatever",
-                "just tell me", "no clue", "dunno", "nope", "can't", "cant",
-                "i give up", "too hard", "impossible",
+                "whatever", "just tell me the code", "give up", "cant do it",
             ]
-            if any(cue in msg_lower for cue in dismissive_cues) or word_count <= 3:
+            if any(cue in msg_lower for cue in dismissive_cues) or word_count <= 2:
                 if policy_action != 0:
                     logger.info(
                         f"Guardrail override: {policy_action}→REDIRECT "
@@ -386,7 +411,7 @@ class AdaptiveTutor:
                     )
                 return 0  # REDIRECT
 
-        # --- Rule 3: Student explicitly stuck → SCAFFOLD ---
+        # --- Rule 3: Student explicitly stuck / doesn't know / struggling → SCAFFOLD ---
         stuck_cues = [
             "i'm stuck", "im stuck", "i am stuck", "don't understand",
             "dont understand", "don't get it", "dont get it", "confused",
@@ -394,12 +419,16 @@ class AdaptiveTutor:
             "break it down", "where do i start", "how do i begin",
             "not sure how to", "struggling with", "having trouble",
             "can you help me", "i need help", "please help",
+            "dont know", "don't know", "dont knowww", "no idea", "no clue",
+            "so hard", "too hard", "hard for me", "i give up", "cant do this",
+            "can't do this", "you say the answer", "tell me the answer",
+            "what is the answer", "just tell me", "idk",
         ]
         if any(cue in msg_lower for cue in stuck_cues) and extraction_score < 0.7:
             if policy_action != 1:
                 logger.info(
                     f"Guardrail override: {policy_action}→SCAFFOLD "
-                    f"(student explicitly stuck)"
+                    f"(student explicitly stuck or expressed difficulty: '{student_message}')"
                 )
             return 1  # SCAFFOLD
 
@@ -432,7 +461,13 @@ class AdaptiveTutor:
             "need a break", "so tired", "burnout", "burnt out",
             "staring at this for hours", "spent hours", "overwhelmed",
         ]
-        if any(cue in msg_lower for cue in rush_and_fatigue_cues) and extraction_score < 0.7:
+        continue_cues = [
+            "teach me", "can you teach", "let's try", "lets try",
+            "keep going", "continue", "explain to me", "want to learn",
+            "what is it", "how does it work",
+        ]
+        wants_to_continue = any(cue in msg_lower for cue in continue_cues)
+        if any(cue in msg_lower for cue in rush_and_fatigue_cues) and extraction_score < 0.7 and not wants_to_continue:
             if policy_action != 3:
                 logger.info(
                     f"Guardrail override: {policy_action}→DELAY "

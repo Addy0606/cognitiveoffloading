@@ -95,8 +95,10 @@ def log_telemetry_to_terminal(
     print(f"  [STUDENT MSG]      \"{student_msg[:80]}{'...' if len(student_msg) > 80 else ''}\"")
     print(f"  [EXTRACTION PROB]  {extraction_score:.3f} {'(OFFLOADING DETECTED - CODE WITHHELD)' if extraction_score > 0.5 else '(GENUINE REASONING EFFORT)'}")
     print(f"  [ENGAGEMENT SCORE] {engagement_score:.3f}")
-    print(f"  [Q-VALUES]         [{q_formatted}]")
-    print(f"  [RL ACTION CHOSEN] {action_taken} (Action ID: {action_id})")
+    if action_id == -2:
+        print(f"  [RL ACTION CHOSEN] {action_taken} (Social/Conversational Turn — RL Intervention Bypassed)")
+    else:
+        print(f"  [RL ACTION CHOSEN] {action_taken} (Action ID: {action_id})")
     print(f"  [TUTOR RESPONSE]   \"{tutor_reply[:100].replace(chr(10), ' ')}{'...' if len(tutor_reply) > 100 else ''}\"")
     print(sep + "\n")
 
