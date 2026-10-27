@@ -1,111 +1,111 @@
 dialogue_id,turn_num,message,label,confidence,notes
-SYNTH_0016,7,What's the correct code?,1,medium,synthetic_extraction
-SYNTH_0036,9,Why does Python pass lists by reference but integers by value? Or is it more nuanced than that? I'm seeing unexpected behavior when I modify a list inside a function,0,medium,synthetic_learning
-SYNTH_0018,11,What's the correct code?,1,medium,synthetic_extraction
-SYNTH_0125,16,What's the correct code?,1,high,synthetic_extraction
-SYNTH_0166,10,"I'm stuck, give me the code",1,medium,synthetic_extraction
-SYNTH_0030,15,I implemented the algorithm but I want to understand the intuition. Why does the greedy approach work here? It seems like it could miss the optimal solution,0,high,synthetic_learning
-SYNTH_0199,12,I read that Python dictionaries maintain insertion order since 3.7. Does that mean they use a different data structure than a regular hash table?,0,medium,synthetic_learning
-SYNTH_0001,13,Copy paste the solution please,1,medium,synthetic_extraction
-SYNTH_0056,16,I tried to implement merge sort and the splitting works but my merge function isn't combining correctly. The sorted halves are right but the final array has duplicates,0,medium,synthetic_learning
-SYNTH_0166,11,"Stop explaining, just give the code",1,high,synthetic_extraction
-SYNTH_0145,20,I was working on this problem for an hour and I think I need a different approach. I tried brute force but it times out. Would a sliding window work here?,0,medium,synthetic_learning
-SYNTH_0166,5,I'm comparing my solution to the expected output and they differ for negative numbers. I think my absolute value calculation is wrong,0,high,synthetic_learning
-SYNTH_0061,9,"Stop explaining, just give the code",1,medium,synthetic_extraction
-SYNTH_0153,3,Can you solve this for me?,1,high,synthetic_extraction
-SYNTH_0096,6,"I need the code that does X, just paste it",1,high,synthetic_extraction
-SYNTH_0192,19,"I believe the time complexity is O(n) because I iterate through the list once, but I'm not sure about the space complexity since I create a dictionary",0,medium,synthetic_learning
-SYNTH_0171,10,My sorting function works for small arrays but fails on edge cases like empty arrays and single elements. How should I handle those?,0,high,synthetic_learning
-SYNTH_0056,8,I tried implementing a trie for autocomplete. The insertion works but my search function doesn't handle the case where the word is a prefix of another word,0,medium,synthetic_learning
-SYNTH_0096,14,Why does my recursive Fibonacci function take so long for n=40? I calculated that it should make about 2^40 calls — is there a better way?,0,high,synthetic_learning
-SYNTH_0192,9,I was working on this problem for an hour and I think I need a different approach. I tried brute force but it times out. Would a sliding window work here?,0,medium,synthetic_learning
-SYNTH_0184,7,Copy paste the solution please,1,high,synthetic_extraction
-SYNTH_0145,19,Why does Python pass lists by reference but integers by value? Or is it more nuanced than that? I'm seeing unexpected behavior when I modify a list inside a function,0,medium,synthetic_learning
-SYNTH_0192,14,I expected my function to return 5 but it returns None. I think I forgot a return statement somewhere. Here's the code...,0,high,synthetic_learning
-SYNTH_0032,2,I was thinking about this problem and I believe we need dynamic programming because there are overlapping subproblems. Is that the right approach?,0,high,synthetic_learning
-SYNTH_0199,11,"I'm trying to understand Big O notation. When we say O(n log n), does that mean the algorithm always takes exactly n*log(n) steps?",0,high,synthetic_learning
-SYNTH_0081,2,What's the shortcut to solve this?,1,high,synthetic_extraction
-SYNTH_0083,4,I expected my function to return 5 but it returns None. I think I forgot a return statement somewhere. Here's the code...,0,high,synthetic_learning
-SYNTH_0009,12,My BFS implementation visits nodes but doesn't find the shortest path. I think I need to track the parent of each node? Here's my attempt...,0,high,synthetic_learning
-SYNTH_0168,16,Give me the implementation,1,medium,synthetic_extraction
-SYNTH_0168,5,"I'm trying to understand Big O notation. When we say O(n log n), does that mean the algorithm always takes exactly n*log(n) steps?",0,high,synthetic_learning
-SYNTH_0150,14,Can you explain the difference between a stack and a queue? I know one is FIFO and one is LIFO but I get confused about which is which,0,medium,synthetic_learning
-SYNTH_0016,6,I attempted to implement binary search but my mid calculation seems off. I used mid = (left + right) / 2 — is there a problem with integer division?,0,medium,synthetic_learning
-SYNTH_0030,9,Just give me the code for this problem,1,high,synthetic_extraction
-SYNTH_0056,15,What goes in the blank?,1,medium,synthetic_extraction
-SYNTH_0032,15,I think the bug is in my loop condition. I have while i <= n but should it be while i < n? The off-by-one errors are confusing me,0,medium,synthetic_learning
-SYNTH_0153,16,The error says 'maximum recursion depth exceeded'. I think my base case is wrong — I have if n == 0 but maybe it should be if n <= 1?,0,medium,synthetic_learning
-SYNTH_0018,16,I wrote a class for a binary tree but I'm not sure if my insert method handles duplicates correctly. Should duplicates go left or right?,0,medium,synthetic_learning
-SYNTH_0030,13,I expected my function to return 5 but it returns None. I think I forgot a return statement somewhere. Here's the code...,0,high,synthetic_learning
-SYNTH_0009,11,"I just want the right answer, no explanations",1,medium,synthetic_extraction
-SYNTH_0153,17,I noticed that adding to the beginning of a Python list is slow. Is this because lists are arrays internally? What should I use instead?,0,medium,synthetic_learning
-SYNTH_0168,4,"I'm stuck, give me the code",1,high,synthetic_extraction
-SYNTH_0143,12,I debugged my code and found that the issue was with how I was updating the visited set. I was adding nodes before checking their neighbors. Is that correct for DFS?,0,high,synthetic_learning
-SYNTH_0153,3,I wrote this function to reverse a linked list but it's returning None. I think the issue is with my pointer reassignment. Here's what I have...,0,medium,synthetic_learning
-SYNTH_0199,10,Why does quicksort have O(n²) worst case? I thought the pivot should always split evenly,0,high,synthetic_learning
-SYNTH_0177,8,What goes in the blank?,1,high,synthetic_extraction
-SYNTH_0171,14,I debugged my code and found that the issue was with how I was updating the visited set. I was adding nodes before checking their neighbors. Is that correct for DFS?,0,high,synthetic_learning
-SYNTH_0032,12,My BFS implementation visits nodes but doesn't find the shortest path. I think I need to track the parent of each node? Here's my attempt...,0,medium,synthetic_learning
-SYNTH_0039,15,I debugged my code and found that the issue was with how I was updating the visited set. I was adding nodes before checking their neighbors. Is that correct for DFS?,0,medium,synthetic_learning
-SYNTH_0039,8,"I need the code that does X, just paste it",1,medium,synthetic_extraction
-SYNTH_0016,19,I think the bug is in my loop condition. I have while i <= n but should it be while i < n? The off-by-one errors are confusing me,0,medium,synthetic_learning
-SYNTH_0195,8,Can you write this function for me?,1,medium,synthetic_extraction
-SYNTH_0083,7,I wrote a class for a binary tree but I'm not sure if my insert method handles duplicates correctly. Should duplicates go left or right?,0,high,synthetic_learning
-SYNTH_0180,17,I was working on this problem for an hour and I think I need a different approach. I tried brute force but it times out. Would a sliding window work here?,0,high,synthetic_learning
-SYNTH_0192,3,I think I understand how hash maps work — you hash the key to get an index — but what happens when two keys hash to the same index?,0,medium,synthetic_learning
-SYNTH_0083,1,I tried implementing a trie for autocomplete. The insertion works but my search function doesn't handle the case where the word is a prefix of another word,0,high,synthetic_learning
-SYNTH_0053,10,I tried using a for loop but I'm getting an index out of range error. Here's my code: for i in range(len(arr)+1). Why does this happen?,0,high,synthetic_learning
-SYNTH_0171,1,My BFS implementation visits nodes but doesn't find the shortest path. I think I need to track the parent of each node? Here's my attempt...,0,medium,synthetic_learning
-SYNTH_0178,20,Can you explain the difference between a stack and a queue? I know one is FIFO and one is LIFO but I get confused about which is which,0,high,synthetic_learning
-SYNTH_0195,4,Why does quicksort have O(n²) worst case? I thought the pivot should always split evenly,0,medium,synthetic_learning
-SYNTH_0032,14,I was working on this problem for an hour and I think I need a different approach. I tried brute force but it times out. Would a sliding window work here?,0,medium,synthetic_learning
-SYNTH_0143,8,What's the answer to question 3?,1,high,synthetic_extraction
-SYNTH_0032,15,I wrote a class for a binary tree but I'm not sure if my insert method handles duplicates correctly. Should duplicates go left or right?,0,medium,synthetic_learning
-SYNTH_0145,2,Hand me the code for sorting,1,medium,synthetic_extraction
-SYNTH_0032,10,"I'm stuck, give me the code",1,medium,synthetic_extraction
-SYNTH_0153,20,"I believe the time complexity is O(n) because I iterate through the list once, but I'm not sure about the space complexity since I create a dictionary",0,high,synthetic_learning
-SYNTH_0150,5,"I'm confused about the difference between deep copy and shallow copy. When I copy my 2D list, modifying the copy also changes the original",0,high,synthetic_learning
-SYNTH_0184,15,I attempted to implement binary search but my mid calculation seems off. I used mid = (left + right) / 2 — is there a problem with integer division?,0,high,synthetic_learning
-SYNTH_0153,17,"I believe the time complexity is O(n) because I iterate through the list once, but I'm not sure about the space complexity since I create a dictionary",0,medium,synthetic_learning
-SYNTH_0034,3,I'm comparing my solution to the expected output and they differ for negative numbers. I think my absolute value calculation is wrong,0,medium,synthetic_learning
-SYNTH_0034,10,I think the bug is in my loop condition. I have while i <= n but should it be while i < n? The off-by-one errors are confusing me,0,medium,synthetic_learning
-SYNTH_0018,9,What do I write for this assignment?,1,medium,synthetic_extraction
-SYNTH_0076,18,Tell me the steps without me thinking,1,high,synthetic_extraction
-SYNTH_0018,8,"I believe the time complexity is O(n) because I iterate through the list once, but I'm not sure about the space complexity since I create a dictionary",0,medium,synthetic_learning
-SYNTH_0061,6,What's the formula?,1,high,synthetic_extraction
-SYNTH_0108,16,Paste the solution here,1,high,synthetic_extraction
-SYNTH_0032,13,Can you write this function for me?,1,high,synthetic_extraction
-SYNTH_0150,14,What's the shortcut to solve this?,1,medium,synthetic_extraction
-SYNTH_0046,17,Just tell me how to do it,1,medium,synthetic_extraction
-SYNTH_0145,10,I wrote this function to reverse a linked list but it's returning None. I think the issue is with my pointer reassignment. Here's what I have...,0,high,synthetic_learning
-SYNTH_0012,12,I wrote this function to reverse a linked list but it's returning None. I think the issue is with my pointer reassignment. Here's what I have...,0,medium,synthetic_learning
-SYNTH_0056,8,Can you solve this for me?,1,high,synthetic_extraction
-SYNTH_0001,11,What's the answer to question 3?,1,high,synthetic_extraction
-SYNTH_0045,3,Can you explain the difference between a stack and a queue? I know one is FIFO and one is LIFO but I get confused about which is which,0,medium,synthetic_learning
-SYNTH_0036,8,What do I write for this assignment?,1,medium,synthetic_extraction
-SYNTH_0001,14,Can you explain the difference between a stack and a queue? I know one is FIFO and one is LIFO but I get confused about which is which,0,medium,synthetic_learning
-SYNTH_0178,10,Can you explain the difference between a stack and a queue? I know one is FIFO and one is LIFO but I get confused about which is which,0,high,synthetic_learning
-SYNTH_0108,13,Give me the implementation,1,high,synthetic_extraction
-SYNTH_0083,16,Give me a working solution,1,high,synthetic_extraction
-SYNTH_0096,10,Why does my recursive Fibonacci function take so long for n=40? I calculated that it should make about 2^40 calls — is there a better way?,0,medium,synthetic_learning
-SYNTH_0039,9,Can you help me understand why memoization turns exponential time into polynomial? I added a cache but I want to understand why it works,0,high,synthetic_learning
-SYNTH_0046,10,Why does my recursive Fibonacci function take so long for n=40? I calculated that it should make about 2^40 calls — is there a better way?,0,high,synthetic_learning
-SYNTH_0096,18,I debugged my code and found that the issue was with how I was updating the visited set. I was adding nodes before checking their neighbors. Is that correct for DFS?,0,high,synthetic_learning
-SYNTH_0076,1,The error says 'maximum recursion depth exceeded'. I think my base case is wrong — I have if n == 0 but maybe it should be if n <= 1?,0,medium,synthetic_learning
-SYNTH_0018,9,I debugged my code and found that the issue was with how I was updating the visited set. I was adding nodes before checking their neighbors. Is that correct for DFS?,0,medium,synthetic_learning
-SYNTH_0018,12,I implemented the algorithm but I want to understand the intuition. Why does the greedy approach work here? It seems like it could miss the optimal solution,0,high,synthetic_learning
-SYNTH_0153,2,What goes in the blank?,1,high,synthetic_extraction
-SYNTH_0030,15,My code works correctly but it's not efficient enough. The time limit is 1 second and my O(n²) solution takes 3 seconds. How can I optimize it?,0,high,synthetic_learning
-SYNTH_0145,7,I implemented the algorithm but I want to understand the intuition. Why does the greedy approach work here? It seems like it could miss the optimal solution,0,high,synthetic_learning
-SYNTH_0076,20,Can you write this function for me?,1,medium,synthetic_extraction
-SYNTH_0009,11,Can you solve this for me?,1,high,synthetic_extraction
-SYNTH_0171,9,I expected my function to return 5 but it returns None. I think I forgot a return statement somewhere. Here's the code...,0,medium,synthetic_learning
-SYNTH_0006,20,"I just want the right answer, no explanations",1,high,synthetic_extraction
-SYNTH_0045,4,I implemented the algorithm but I want to understand the intuition. Why does the greedy approach work here? It seems like it could miss the optimal solution,0,high,synthetic_learning
-SYNTH_0030,18,"I'm trying to understand Big O notation. When we say O(n log n), does that mean the algorithm always takes exactly n*log(n) steps?",0,high,synthetic_learning
-SYNTH_0034,18,I tried to implement merge sort and the splitting works but my merge function isn't combining correctly. The sorted halves are right but the final array has duplicates,0,medium,synthetic_learning
-SYNTH_0036,5,I think I understand how hash maps work — you hash the key to get an index — but what happens when two keys hash to the same index?,0,high,synthetic_learning
-SYNTH_0001,10,Can you write this function for me?,1,medium,synthetic_extraction
-SYNTH_0180,4,Why does quicksort have O(n²) worst case? I thought the pivot should always split evenly,0,high,synthetic_learning
-SYNTH_0046,17,What's the correct code?,1,medium,synthetic_extraction
-SYNTH_0030,3,My sorting function works for small arrays but fails on edge cases like empty arrays and single elements. How should I handle those?,0,medium,synthetic_learning
+DIALOGUE_0016,7,What's the correct code?,1,medium,extraction
+DIALOGUE_0036,9,Why does Python pass lists by reference but integers by value? Or is it more nuanced than that? I'm seeing unexpected behavior when I modify a list inside a function,0,medium,learning
+DIALOGUE_0018,11,What's the correct code?,1,medium,extraction
+DIALOGUE_0125,16,What's the correct code?,1,high,extraction
+DIALOGUE_0166,10,"I'm stuck, give me the code",1,medium,extraction
+DIALOGUE_0030,15,I implemented the algorithm but I want to understand the intuition. Why does the greedy approach work here? It seems like it could miss the optimal solution,0,high,learning
+DIALOGUE_0199,12,I read that Python dictionaries maintain insertion order since 3.7. Does that mean they use a different data structure than a regular hash table?,0,medium,learning
+DIALOGUE_0001,13,Copy paste the solution please,1,medium,extraction
+DIALOGUE_0056,16,I tried to implement merge sort and the splitting works but my merge function isn't combining correctly. The sorted halves are right but the final array has duplicates,0,medium,learning
+DIALOGUE_0166,11,"Stop explaining, just give the code",1,high,extraction
+DIALOGUE_0145,20,I was working on this problem for an hour and I think I need a different approach. I tried brute force but it times out. Would a sliding window work here?,0,medium,learning
+DIALOGUE_0166,5,I'm comparing my solution to the expected output and they differ for negative numbers. I think my absolute value calculation is wrong,0,high,learning
+DIALOGUE_0061,9,"Stop explaining, just give the code",1,medium,extraction
+DIALOGUE_0153,3,Can you solve this for me?,1,high,extraction
+DIALOGUE_0096,6,"I need the code that does X, just paste it",1,high,extraction
+DIALOGUE_0192,19,"I believe the time complexity is O(n) because I iterate through the list once, but I'm not sure about the space complexity since I create a dictionary",0,medium,learning
+DIALOGUE_0171,10,My sorting function works for small arrays but fails on edge cases like empty arrays and single elements. How should I handle those?,0,high,learning
+DIALOGUE_0056,8,I tried implementing a trie for autocomplete. The insertion works but my search function doesn't handle the case where the word is a prefix of another word,0,medium,learning
+DIALOGUE_0096,14,Why does my recursive Fibonacci function take so long for n=40? I calculated that it should make about 2^40 calls — is there a better way?,0,high,learning
+DIALOGUE_0192,9,I was working on this problem for an hour and I think I need a different approach. I tried brute force but it times out. Would a sliding window work here?,0,medium,learning
+DIALOGUE_0184,7,Copy paste the solution please,1,high,extraction
+DIALOGUE_0145,19,Why does Python pass lists by reference but integers by value? Or is it more nuanced than that? I'm seeing unexpected behavior when I modify a list inside a function,0,medium,learning
+DIALOGUE_0192,14,I expected my function to return 5 but it returns None. I think I forgot a return statement somewhere. Here's the code...,0,high,learning
+DIALOGUE_0032,2,I was thinking about this problem and I believe we need dynamic programming because there are overlapping subproblems. Is that the right approach?,0,high,learning
+DIALOGUE_0199,11,"I'm trying to understand Big O notation. When we say O(n log n), does that mean the algorithm always takes exactly n*log(n) steps?",0,high,learning
+DIALOGUE_0081,2,What's the shortcut to solve this?,1,high,extraction
+DIALOGUE_0083,4,I expected my function to return 5 but it returns None. I think I forgot a return statement somewhere. Here's the code...,0,high,learning
+DIALOGUE_0009,12,My BFS implementation visits nodes but doesn't find the shortest path. I think I need to track the parent of each node? Here's my attempt...,0,high,learning
+DIALOGUE_0168,16,Give me the implementation,1,medium,extraction
+DIALOGUE_0168,5,"I'm trying to understand Big O notation. When we say O(n log n), does that mean the algorithm always takes exactly n*log(n) steps?",0,high,learning
+DIALOGUE_0150,14,Can you explain the difference between a stack and a queue? I know one is FIFO and one is LIFO but I get confused about which is which,0,medium,learning
+DIALOGUE_0016,6,I attempted to implement binary search but my mid calculation seems off. I used mid = (left + right) / 2 — is there a problem with integer division?,0,medium,learning
+DIALOGUE_0030,9,Just give me the code for this problem,1,high,extraction
+DIALOGUE_0056,15,What goes in the blank?,1,medium,extraction
+DIALOGUE_0032,15,I think the bug is in my loop condition. I have while i <= n but should it be while i < n? The off-by-one errors are confusing me,0,medium,learning
+DIALOGUE_0153,16,The error says 'maximum recursion depth exceeded'. I think my base case is wrong — I have if n == 0 but maybe it should be if n <= 1?,0,medium,learning
+DIALOGUE_0018,16,I wrote a class for a binary tree but I'm not sure if my insert method handles duplicates correctly. Should duplicates go left or right?,0,medium,learning
+DIALOGUE_0030,13,I expected my function to return 5 but it returns None. I think I forgot a return statement somewhere. Here's the code...,0,high,learning
+DIALOGUE_0009,11,"I just want the right answer, no explanations",1,medium,extraction
+DIALOGUE_0153,17,I noticed that adding to the beginning of a Python list is slow. Is this because lists are arrays internally? What should I use instead?,0,medium,learning
+DIALOGUE_0168,4,"I'm stuck, give me the code",1,high,extraction
+DIALOGUE_0143,12,I debugged my code and found that the issue was with how I was updating the visited set. I was adding nodes before checking their neighbors. Is that correct for DFS?,0,high,learning
+DIALOGUE_0153,3,I wrote this function to reverse a linked list but it's returning None. I think the issue is with my pointer reassignment. Here's what I have...,0,medium,learning
+DIALOGUE_0199,10,Why does quicksort have O(n²) worst case? I thought the pivot should always split evenly,0,high,learning
+DIALOGUE_0177,8,What goes in the blank?,1,high,extraction
+DIALOGUE_0171,14,I debugged my code and found that the issue was with how I was updating the visited set. I was adding nodes before checking their neighbors. Is that correct for DFS?,0,high,learning
+DIALOGUE_0032,12,My BFS implementation visits nodes but doesn't find the shortest path. I think I need to track the parent of each node? Here's my attempt...,0,medium,learning
+DIALOGUE_0039,15,I debugged my code and found that the issue was with how I was updating the visited set. I was adding nodes before checking their neighbors. Is that correct for DFS?,0,medium,learning
+DIALOGUE_0039,8,"I need the code that does X, just paste it",1,medium,extraction
+DIALOGUE_0016,19,I think the bug is in my loop condition. I have while i <= n but should it be while i < n? The off-by-one errors are confusing me,0,medium,learning
+DIALOGUE_0195,8,Can you write this function for me?,1,medium,extraction
+DIALOGUE_0083,7,I wrote a class for a binary tree but I'm not sure if my insert method handles duplicates correctly. Should duplicates go left or right?,0,high,learning
+DIALOGUE_0180,17,I was working on this problem for an hour and I think I need a different approach. I tried brute force but it times out. Would a sliding window work here?,0,high,learning
+DIALOGUE_0192,3,I think I understand how hash maps work — you hash the key to get an index — but what happens when two keys hash to the same index?,0,medium,learning
+DIALOGUE_0083,1,I tried implementing a trie for autocomplete. The insertion works but my search function doesn't handle the case where the word is a prefix of another word,0,high,learning
+DIALOGUE_0053,10,I tried using a for loop but I'm getting an index out of range error. Here's my code: for i in range(len(arr)+1). Why does this happen?,0,high,learning
+DIALOGUE_0171,1,My BFS implementation visits nodes but doesn't find the shortest path. I think I need to track the parent of each node? Here's my attempt...,0,medium,learning
+DIALOGUE_0178,20,Can you explain the difference between a stack and a queue? I know one is FIFO and one is LIFO but I get confused about which is which,0,high,learning
+DIALOGUE_0195,4,Why does quicksort have O(n²) worst case? I thought the pivot should always split evenly,0,medium,learning
+DIALOGUE_0032,14,I was working on this problem for an hour and I think I need a different approach. I tried brute force but it times out. Would a sliding window work here?,0,medium,learning
+DIALOGUE_0143,8,What's the answer to question 3?,1,high,extraction
+DIALOGUE_0032,15,I wrote a class for a binary tree but I'm not sure if my insert method handles duplicates correctly. Should duplicates go left or right?,0,medium,learning
+DIALOGUE_0145,2,Hand me the code for sorting,1,medium,extraction
+DIALOGUE_0032,10,"I'm stuck, give me the code",1,medium,extraction
+DIALOGUE_0153,20,"I believe the time complexity is O(n) because I iterate through the list once, but I'm not sure about the space complexity since I create a dictionary",0,high,learning
+DIALOGUE_0150,5,"I'm confused about the difference between deep copy and shallow copy. When I copy my 2D list, modifying the copy also changes the original",0,high,learning
+DIALOGUE_0184,15,I attempted to implement binary search but my mid calculation seems off. I used mid = (left + right) / 2 — is there a problem with integer division?,0,high,learning
+DIALOGUE_0153,17,"I believe the time complexity is O(n) because I iterate through the list once, but I'm not sure about the space complexity since I create a dictionary",0,medium,learning
+DIALOGUE_0034,3,I'm comparing my solution to the expected output and they differ for negative numbers. I think my absolute value calculation is wrong,0,medium,learning
+DIALOGUE_0034,10,I think the bug is in my loop condition. I have while i <= n but should it be while i < n? The off-by-one errors are confusing me,0,medium,learning
+DIALOGUE_0018,9,What do I write for this assignment?,1,medium,extraction
+DIALOGUE_0076,18,Tell me the steps without me thinking,1,high,extraction
+DIALOGUE_0018,8,"I believe the time complexity is O(n) because I iterate through the list once, but I'm not sure about the space complexity since I create a dictionary",0,medium,learning
+DIALOGUE_0061,6,What's the formula?,1,high,extraction
+DIALOGUE_0108,16,Paste the solution here,1,high,extraction
+DIALOGUE_0032,13,Can you write this function for me?,1,high,extraction
+DIALOGUE_0150,14,What's the shortcut to solve this?,1,medium,extraction
+DIALOGUE_0046,17,Just tell me how to do it,1,medium,extraction
+DIALOGUE_0145,10,I wrote this function to reverse a linked list but it's returning None. I think the issue is with my pointer reassignment. Here's what I have...,0,high,learning
+DIALOGUE_0012,12,I wrote this function to reverse a linked list but it's returning None. I think the issue is with my pointer reassignment. Here's what I have...,0,medium,learning
+DIALOGUE_0056,8,Can you solve this for me?,1,high,extraction
+DIALOGUE_0001,11,What's the answer to question 3?,1,high,extraction
+DIALOGUE_0045,3,Can you explain the difference between a stack and a queue? I know one is FIFO and one is LIFO but I get confused about which is which,0,medium,learning
+DIALOGUE_0036,8,What do I write for this assignment?,1,medium,extraction
+DIALOGUE_0001,14,Can you explain the difference between a stack and a queue? I know one is FIFO and one is LIFO but I get confused about which is which,0,medium,learning
+DIALOGUE_0178,10,Can you explain the difference between a stack and a queue? I know one is FIFO and one is LIFO but I get confused about which is which,0,high,learning
+DIALOGUE_0108,13,Give me the implementation,1,high,extraction
+DIALOGUE_0083,16,Give me a working solution,1,high,extraction
+DIALOGUE_0096,10,Why does my recursive Fibonacci function take so long for n=40? I calculated that it should make about 2^40 calls — is there a better way?,0,medium,learning
+DIALOGUE_0039,9,Can you help me understand why memoization turns exponential time into polynomial? I added a cache but I want to understand why it works,0,high,learning
+DIALOGUE_0046,10,Why does my recursive Fibonacci function take so long for n=40? I calculated that it should make about 2^40 calls — is there a better way?,0,high,learning
+DIALOGUE_0096,18,I debugged my code and found that the issue was with how I was updating the visited set. I was adding nodes before checking their neighbors. Is that correct for DFS?,0,high,learning
+DIALOGUE_0076,1,The error says 'maximum recursion depth exceeded'. I think my base case is wrong — I have if n == 0 but maybe it should be if n <= 1?,0,medium,learning
+DIALOGUE_0018,9,I debugged my code and found that the issue was with how I was updating the visited set. I was adding nodes before checking their neighbors. Is that correct for DFS?,0,medium,learning
+DIALOGUE_0018,12,I implemented the algorithm but I want to understand the intuition. Why does the greedy approach work here? It seems like it could miss the optimal solution,0,high,learning
+DIALOGUE_0153,2,What goes in the blank?,1,high,extraction
+DIALOGUE_0030,15,My code works correctly but it's not efficient enough. The time limit is 1 second and my O(n²) solution takes 3 seconds. How can I optimize it?,0,high,learning
+DIALOGUE_0145,7,I implemented the algorithm but I want to understand the intuition. Why does the greedy approach work here? It seems like it could miss the optimal solution,0,high,learning
+DIALOGUE_0076,20,Can you write this function for me?,1,medium,extraction
+DIALOGUE_0009,11,Can you solve this for me?,1,high,extraction
+DIALOGUE_0171,9,I expected my function to return 5 but it returns None. I think I forgot a return statement somewhere. Here's the code...,0,medium,learning
+DIALOGUE_0006,20,"I just want the right answer, no explanations",1,high,extraction
+DIALOGUE_0045,4,I implemented the algorithm but I want to understand the intuition. Why does the greedy approach work here? It seems like it could miss the optimal solution,0,high,learning
+DIALOGUE_0030,18,"I'm trying to understand Big O notation. When we say O(n log n), does that mean the algorithm always takes exactly n*log(n) steps?",0,high,learning
+DIALOGUE_0034,18,I tried to implement merge sort and the splitting works but my merge function isn't combining correctly. The sorted halves are right but the final array has duplicates,0,medium,learning
+DIALOGUE_0036,5,I think I understand how hash maps work — you hash the key to get an index — but what happens when two keys hash to the same index?,0,high,learning
+DIALOGUE_0001,10,Can you write this function for me?,1,medium,extraction
+DIALOGUE_0180,4,Why does quicksort have O(n²) worst case? I thought the pivot should always split evenly,0,high,learning
+DIALOGUE_0046,17,What's the correct code?,1,medium,extraction
+DIALOGUE_0030,3,My sorting function works for small arrays but fails on edge cases like empty arrays and single elements. How should I handle those?,0,medium,learning

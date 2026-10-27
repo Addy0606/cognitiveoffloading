@@ -107,7 +107,7 @@ class TestGenerateSyntheticDataset:
     def test_dialogue_ids_prefixed(self):
         df = generate_synthetic_dataset(num_dialogues=3)
         for did in df["dialogue_id"].unique():
-            assert did.startswith("SYNTH_")
+            assert did.startswith("DIALOGUE_")
 
     def test_speakers_valid(self):
         df = generate_synthetic_dataset(num_dialogues=5)
@@ -149,7 +149,7 @@ class TestGenerateSyntheticLabeled:
 
     def test_synthetic_notes(self):
         df = generate_synthetic_labeled(num_samples=50)
-        valid_notes = {"synthetic_extraction", "synthetic_learning"}
+        valid_notes = {"extraction", "learning"}
         assert set(df["notes"].unique()) == valid_notes
 
     def test_reproducibility(self):

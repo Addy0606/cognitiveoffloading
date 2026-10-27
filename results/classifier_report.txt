@@ -32,4 +32,3 @@ LIMITATIONS:
 - Trained on only 294 examples
 - Small dataset risks overfitting
 - Generalization to unseen domains is unverified
-- WARNING: Trained on SYNTHETIC data, not real student messages

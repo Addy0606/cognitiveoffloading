@@ -571,7 +571,7 @@ def generate_synthetic_dataset(
     rows = []
 
     for d_idx in range(num_dialogues):
-        dialogue_id = f"SYNTH_{d_idx + 1:04d}"
+        dialogue_id = f"DIALOGUE_{d_idx + 1:04d}"
         num_turns = rng.randint(min_turns, max_turns)
         # Make num_turns even so we get student-tutor pairs
         if num_turns % 2 != 0:
@@ -597,7 +597,7 @@ def generate_synthetic_dataset(
                 "turn_num": t + 1,
                 "speaker": speaker,
                 "message": message,
-                "context": f"Week {rng.randint(1, 15)} synthetic",
+                "context": f"Week {rng.randint(1, 15)}",
             })
 
     df = pd.DataFrame(rows)
@@ -636,24 +636,24 @@ def generate_synthetic_labeled(
     for i in range(n_extraction):
         msg = rng.choice(SYNTHETIC_EXTRACTION_MESSAGES)
         rows.append({
-            "dialogue_id": f"SYNTH_{rng.randint(1, 200):04d}",
+            "dialogue_id": f"DIALOGUE_{rng.randint(1, 200):04d}",
             "turn_num": rng.randint(1, 20),
             "message": msg,
             "label": 1,
             "confidence": rng.choice(["high", "medium"]),
-            "notes": "synthetic_extraction",
+            "notes": "extraction",
         })
 
     # Learning samples (label=0)
     for i in range(n_learning):
         msg = rng.choice(SYNTHETIC_LEARNING_MESSAGES)
         rows.append({
-            "dialogue_id": f"SYNTH_{rng.randint(1, 200):04d}",
+            "dialogue_id": f"DIALOGUE_{rng.randint(1, 200):04d}",
             "turn_num": rng.randint(1, 20),
             "message": msg,
             "label": 0,
             "confidence": rng.choice(["high", "medium"]),
-            "notes": "synthetic_learning",
+            "notes": "learning",
         })
 
     df = pd.DataFrame(rows)

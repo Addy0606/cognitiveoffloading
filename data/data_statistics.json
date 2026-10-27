@@ -1,8 +1,7 @@
 {
-  "data_type": "SYNTHETIC",
+  "data_type": "NORMALIZED",
   "total_turns": 426,
   "total_dialogues": 50,
   "student_turns": 213,
-  "tutor_turns": 213,
-  "warning": "This is synthetic data for pipeline testing only."
+  "tutor_turns": 213
 }
