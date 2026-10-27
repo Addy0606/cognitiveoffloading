@@ -40,80 +40,153 @@ Student Message
 | **SOCRATIC** | 2 | Student capable of reasoning with guided questions |
 | **DELAY** | 3 | Student frustrated or fatigued — suggest a strategic pause |
 
-## Quick Start
+## Models & Weights (Hugging Face)
 
-### Prerequisites
+Pretrained model weights (fine-tuned DeBERTa classifier and trained RL DQN policy network) are hosted on Hugging Face:
+🤗 **[addy0606/cognitive-offloading](https://huggingface.co/addy0606/cognitive-offloading)**
 
-- Python 3.10+ (tested with 3.10.12)
-- PyTorch 2.x
-- conda environment (recommended)
-
-### Installation
-
+You can download them with a single command without needing to retrain from scratch:
 ```bash
-# Clone the repository
+python scripts/download_models.py
+```
+
+---
+
+## Setup & Running on Another PC
+
+Follow these steps to set up and run the complete project on any machine (Windows, macOS, Linux).
+
+### 1. Prerequisites
+- **Python 3.10+** (tested on 3.10 and 3.11)
+- **Git**
+- *(Optional for AI response generation)*: **[Ollama](https://ollama.com/)** running locally (e.g. `qwen2.5:3b`) or an **OpenAI API key**. If neither is provided, the system automatically uses built-in offline pedagogical response templates.
+
+---
+
+### 2. Clone the Repository
+```bash
 git clone https://github.com/Addy0606/cognitiveoffloading.git
 cd cognitiveoffloading
-
-# Create and activate conda environment
-conda activate rl
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Copy environment variables template
-cp .env.example .env
-# Edit .env to add your OpenAI API key (optional - fallback responses work without it)
 ```
 
-### Running the Pipeline
+---
+
+### 3. Create & Activate a Virtual Environment
+
+**Using Python `venv`:**
+```bash
+# Windows
+python -m venv venv
+.\venv\Scripts\activate
+
+# macOS / Linux
+python3 -m venv venv
+source venv/bin/activate
+```
+
+**Or using Conda:**
+```bash
+conda create -n rl python=3.10 -y
+conda activate rl
+```
+
+---
+
+### 4. Install Dependencies
 
 ```bash
-# Step 0: Prepare data (generates synthetic data for testing)
-python scripts/0_prepare_data.py
+# If you have an NVIDIA GPU (optional, for CUDA acceleration):
+# pip install torch --index-url https://download.pytorch.org/whl/cu121
 
-# Step 1b: Create train/val/test splits
-python scripts/1b_create_splits.py
-
-# Step 2: Train the classifier
-python scripts/2_train_classifier.py
-
-# Step 3: Run causal analysis
-python scripts/3_causal_analysis.py
-
-# Step 4: Train the RL policy
-python scripts/4_train_rl_policy.py
-
-# Step 5: Evaluate
-python scripts/5_evaluate.py
-
-# Or run everything at once:
-python scripts/run_all.py
+# Install required dependencies:
+pip install -r requirements.txt
 ```
 
-### Interactive Demo
+---
 
+### 5. Download Pre-trained Models
+
+Download the DeBERTa extraction classifier backbone, classification head, and RL DQN policy network directly from Hugging Face:
+
+```bash
+python scripts/download_models.py
+```
+
+---
+
+### 6. Configure Environment Variables
+
+```bash
+# Windows (PowerShell)
+Copy-Item .env.example .env
+
+# macOS / Linux
+cp .env.example .env
+```
+
+Edit `.env` if desired:
+* To use free local LLM: ensure Ollama is running (`ollama run qwen2.5:3b`) and keep `LLM_PROVIDER=ollama`.
+* To use OpenAI: set `LLM_PROVIDER=openai` and `OPENAI_API_KEY=your_key`.
+* To run completely offline without an LLM: set `LLM_PROVIDER=fallback`.
+
+---
+
+### 7. Run the Application
+
+#### A. Interactive Web Interface (Flask)
+```bash
+python app.py
+```
+Open **`http://localhost:5000`** in your browser to chat with the adaptive tutor, view real-time cognitive offloading probability bars, inspect state vectors, and observe RL action selections live.
+
+#### B. Terminal Interactive Demo
 ```bash
 python scripts/demo.py
 ```
 
-### Running Tests
+#### C. Run the Evaluation Benchmark
+```bash
+python scripts/5_evaluate.py
+```
+
+---
+
+### 8. Running the Full Training Pipeline (Optional)
+
+If you wish to retrain all models from scratch:
 
 ```bash
-# Run fast tests (no model download required)
-python -m pytest tests/ -v
+# Run complete end-to-end training and evaluation:
+python scripts/run_all.py
 
-# Run all tests including slow tests (requires DeBERTa download)
-python -m pytest tests/ -v -m "slow"
+# Or step-by-step:
+python scripts/0_prepare_data.py       # Generate synthetic dialogue data
+python scripts/1b_create_splits.py     # Create train/val/test splits
+python scripts/2_train_classifier.py   # Fine-tune DeBERTa extraction classifier
+python scripts/3_causal_analysis.py    # Run causal analysis on tutor transitions
+python scripts/4_train_rl_policy.py    # Train RL DQN policy
+python scripts/5_evaluate.py           # Evaluate against baselines
+```
 
-# Run with coverage
-python -m pytest tests/ -v --cov=src --cov-report=term-missing
+---
+
+### 9. Running Tests
+
+```bash
+# Run complete test suite (162 tests)
+pytest tests/ -v
 ```
 
 ## Project Structure
 
 ```
 cognitiveoffloading/
+├── app.py                      # Flask interactive web UI
+├── static/                     # Web UI styles & frontend client
+│   ├── app.js
+│   └── style.css
+├── templates/                  # Web UI HTML templates
+│   └── index.html
 ├── src/                        # Core source modules
 │   ├── __init__.py
 │   ├── adaptive_tutor.py       # End-to-end inference pipeline
@@ -122,7 +195,9 @@ cognitiveoffloading/
 │   ├── prompts.py              # Pedagogical intervention prompts
 │   ├── rl_policy_network.py    # Q-learning policy network + trainer
 │   └── utils.py                # Data loading, state encoding, LLM, helpers
-├── scripts/                    # Pipeline and analysis scripts
+├── scripts/                    # Pipeline and utility scripts
+│   ├── download_models.py      # Download models from Hugging Face Hub
+│   ├── upload_to_hf.py         # Upload models & card to Hugging Face
 │   ├── 0_prepare_data.py       # Data preparation (synthetic or real)
 │   ├── 1_label_data.py         # Interactive annotation interface
 │   ├── 1b_create_splits.py     # Stratified train/val/test splitting
@@ -130,9 +205,9 @@ cognitiveoffloading/
 │   ├── 3_causal_analysis.py    # Tutor→student pattern analysis
 │   ├── 4_train_rl_policy.py    # RL policy training
 │   ├── 5_evaluate.py           # Evaluation metrics
-│   ├── demo.py                 # Interactive demo
+│   ├── demo.py                 # Interactive terminal demo
 │   └── run_all.py              # Full pipeline orchestration
-├── tests/                      # Test suite (162 tests)
+├── tests/                      # Test suite (162 unit & integration tests)
 │   ├── conftest.py             # Shared fixtures
 │   ├── test_engagement.py      # Engagement scorer tests
 │   ├── test_classifier.py      # Classifier tests
@@ -140,10 +215,10 @@ cognitiveoffloading/
 │   ├── test_state_encoder.py   # State encoder tests
 │   ├── test_utils.py           # Utility function tests
 │   └── test_integration.py     # Integration tests
-├── data/                       # Data directory (generated)
-├── models/                     # Saved model checkpoints
-├── results/                    # Evaluation results and plots
-├── notebooks/                  # Jupyter notebooks
+├── data/                       # Dataset splits (train/val/test)
+├── models/                     # Model weights (DeBERTa backbone + RL policy)
+├── results/                    # Evaluation metrics and causal analysis
+├── notebooks/                  # Jupyter exploration notebooks
 ├── logs/                       # Training logs
 ├── .env.example                # Environment variable template
 ├── .gitignore
