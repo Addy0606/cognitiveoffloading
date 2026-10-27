@@ -1,180 +1,302 @@
 /**
- * Adaptive DSA Tutor — Client Application Logic
- * Communicates with Flask backend and updates ML Diagnostics in real-time.
+ * DSA AI MENTOR — Client Application Logic
+ * Freeform Chat Workflow:
+ * - Start a chat by asking any DSA doubt or concept
+ * - Auto-detects DSA concept & auto-titles conversation
+ * - Inline & topbar manual conversation renaming
+ * - SQLite persistent conversation history
+ * - Student comprehension feedback & 1-10 confidence rating
+ * - Spaced retention check-in (only triggers on actual past practice)
  */
 
 document.addEventListener("DOMContentLoaded", () => {
+    // -------------------------------------------------------------
     // DOM Elements
-    const chatContainer = document.getElementById("chatContainer");
+    // -------------------------------------------------------------
+    const newChatBtn = document.getElementById("newChatBtn");
+    const conversationsList = document.getElementById("conversationsList");
+    const chatCountBadge = document.getElementById("chatCountBadge");
+
+    const chatViewport = document.getElementById("chatViewport");
+    const chatMessages = document.getElementById("chatMessages");
     const messageInput = document.getElementById("messageInput");
     const sendBtn = document.getElementById("sendBtn");
-    const resetBtn = document.getElementById("resetBtn");
-    const policyToggle = document.getElementById("policyToggle");
-    const modeLabel = document.getElementById("modeLabel");
-    const problemSelect = document.getElementById("problemSelect");
-    const toggleProblemBtn = document.getElementById("toggleProblemBtn");
-    const probBody = document.getElementById("probBody");
+    const providerPill = document.getElementById("providerPill");
 
-    // Problem Meta Elements
-    const probTitle = document.getElementById("probTitle");
-    const probDifficulty = document.getElementById("probDifficulty");
-    const probCategory = document.getElementById("probCategory");
-    const probDesc = document.getElementById("probDesc");
-    const probExample = document.getElementById("probExample");
+    // Top Header & Renaming
+    const activeTopicTitle = document.getElementById("activeTopicTitle");
+    const renameHeaderBtn = document.getElementById("renameHeaderBtn");
+    const activeCategory = document.getElementById("activeCategory");
+    const activeTopicSub = document.getElementById("activeTopicSub");
+    const topTopicIcon = document.getElementById("topTopicIcon");
 
-    // Diagnostics HUD Elements
-    const sessionCounter = document.getElementById("sessionCounter");
-    const actionDisplay = document.getElementById("actionDisplay");
-    const actionIcon = document.getElementById("actionIcon");
-    const actionName = document.getElementById("actionName");
-    const actionDesc = document.getElementById("actionDesc");
-    const actionCard = document.querySelector(".action-card");
-    const actionMethod = document.getElementById("actionMethod");
+    // Rename Modal
+    const renameModal = document.getElementById("renameModal");
+    const closeRenameModal = document.getElementById("closeRenameModal");
+    const cancelRenameBtn = document.getElementById("cancelRenameBtn");
+    const saveRenameBtn = document.getElementById("saveRenameBtn");
+    const renameInput = document.getElementById("renameInput");
 
-    const extractionVal = document.getElementById("extractionVal");
-    const extractionBar = document.getElementById("extractionBar");
-    const engagementVal = document.getElementById("engagementVal");
-    const engagementBar = document.getElementById("engagementBar");
-    const struggleStatus = document.getElementById("struggleStatus");
-    const struggleDots = document.querySelectorAll(".s-dot");
+    // Retention Check-in Banner
+    const retentionBanner = document.getElementById("retentionBanner");
+    const retentionText = document.getElementById("retentionText");
+    const retentionTestBtn = document.getElementById("retentionTestBtn");
+    const retentionRateBtn = document.getElementById("retentionRateBtn");
+    const retentionDismissBtn = document.getElementById("retentionDismissBtn");
 
-    // Action Descriptions Dictionary
-    const ACTION_INFO = {
-        "REDIRECT": {
-            icon: "🛑",
-            title: "REDIRECT",
-            theme: "theme-REDIRECT",
-            desc: "Active cognitive offloading detected. Refused direct code dump; redirected student to step 1."
-        },
-        "SCAFFOLD": {
-            icon: "🪜",
-            title: "SCAFFOLD",
-            theme: "theme-SCAFFOLD",
-            desc: "Student is experiencing cognitive overload or confusion. Deconstructing problem into smaller sub-steps."
-        },
-        "SOCRATIC": {
-            icon: "💡",
-            title: "SOCRATIC",
-            theme: "theme-SOCRATIC",
-            desc: "Student is reasoning productively. Guiding discovery via targeted probing questions without giving answers."
-        },
-        "DELAY": {
-            icon: "⏳",
-            title: "DELAY",
-            theme: "theme-DELAY",
-            desc: "Student fatigue / burnout detected. Prescribed a 10-minute strategic pause while preserving problem state."
-        },
-        "BASELINE": {
-            icon: "🤖",
-            title: "BASELINE (GENERIC)",
-            theme: "",
-            desc: "Standard unconstrained LLM response (non-adaptive baseline comparison)."
-        }
+    // Mastery Summary
+    const masteryPercent = document.getElementById("masteryPercent");
+    const masteryBarFill = document.getElementById("masteryBarFill");
+    const masteryPracticed = document.getElementById("masteryPracticed");
+    const masteryAvgConf = document.getElementById("masteryAvgConf");
+
+    // Confidence Modal
+    const confidenceModal = document.getElementById("confidenceModal");
+    const closeConfidenceModal = document.getElementById("closeConfidenceModal");
+    const cancelConfidenceBtn = document.getElementById("cancelConfidenceBtn");
+    const saveConfidenceBtn = document.getElementById("saveConfidenceBtn");
+    const modalConceptName = document.getElementById("modalConceptName");
+    const confidenceSlider = document.getElementById("confidenceSlider");
+    const confidenceNum = document.getElementById("confidenceNum");
+    const confidenceLabel = document.getElementById("confidenceLabel");
+    const confidenceNotes = document.getElementById("confidenceNotes");
+
+    // Instructor Telemetry Modal
+    const openTelemetryBtn = document.getElementById("openTelemetryBtn");
+    const telemetryModal = document.getElementById("telemetryModal");
+    const closeTelemetryModal = document.getElementById("closeTelemetryModal");
+    const tExtractionVal = document.getElementById("tExtractionVal");
+    const tExtractionBar = document.getElementById("tExtractionBar");
+    const tEngagementVal = document.getElementById("tEngagementVal");
+    const tEngagementBar = document.getElementById("tEngagementBar");
+    const tActionVal = document.getElementById("tActionVal");
+    const tActionDesc = document.getElementById("tActionDesc");
+
+    // -------------------------------------------------------------
+    // Application State
+    // -------------------------------------------------------------
+    let currentConversationId = null;
+    let currentTopicId = null;
+    let isSending = false;
+    let activeModalTarget = { messageId: null, conceptId: null };
+    let renamingConvId = null;
+    let activeCheckinData = null;
+
+    const CONFIDENCE_DESCRIPTIONS = {
+        1: "Completely Lost — Need full concept breakdown",
+        2: "Very Confused — Don't understand the core mechanism",
+        3: "Struggling — Understand premise, but can't solve it",
+        4: "Uncertain — Need step-by-step examples",
+        5: "Developing — Getting the idea with guidance",
+        6: "Fair — Can reason through with hints",
+        7: "Comfortable — Can explain basic approach and constraints",
+        8: "Confident — Can implement approach independently",
+        9: "Strong — Understand edge cases and time/space complexity",
+        10: "Mastered — Can teach this concept and optimize tradeoffs"
     };
 
-    let problemsData = [];
-    let isSending = false;
+    // -------------------------------------------------------------
+    // 1. Initialize
+    // -------------------------------------------------------------
+    async function init() {
+        await Promise.all([
+            loadConversations(),
+            loadMastery(),
+            loadStatus()
+        ]);
+        checkRetention();
+    }
 
     // -------------------------------------------------------------
-    // 1. Initialize Problem Bank
+    // 2. Conversations List & Persistence
     // -------------------------------------------------------------
-    async function loadProblems() {
+    async function loadConversations() {
         try {
-            const resp = await fetch("/api/problems");
+            const resp = await fetch("/api/conversations");
             const data = await resp.json();
-            problemsData = data.problems || [];
+            const convs = data.conversations || [];
+            chatCountBadge.textContent = convs.length;
+            renderConversationsList(convs);
 
-            problemSelect.innerHTML = "";
-            problemsData.forEach((prob, idx) => {
-                const opt = document.createElement("option");
-                opt.value = prob.id;
-                opt.textContent = `${prob.difficulty}: ${prob.title}`;
-                if (idx === 0) opt.selected = true;
-                problemSelect.appendChild(opt);
-            });
-
-            if (problemsData.length > 0) {
-                renderProblem(problemsData[0]);
+            // Auto-select latest conversation if none selected and convs exist
+            if (!currentConversationId && convs.length > 0) {
+                loadConversationMessages(convs[0].id);
+            } else if (convs.length === 0) {
+                renderWelcomeCard();
             }
         } catch (err) {
-            console.error("Failed to load problems:", err);
+            console.error("Failed to load conversations:", err);
         }
     }
 
-    function renderProblem(prob) {
-        probTitle.textContent = prob.title;
-        probDifficulty.textContent = prob.difficulty;
-        probCategory.textContent = prob.category;
-        probDesc.textContent = prob.description;
-        probExample.textContent = prob.example;
-
-        // Difficulty badge color
-        if (prob.difficulty === "Easy") {
-            probDifficulty.style.color = "var(--accent-emerald)";
-            probDifficulty.style.borderColor = "rgba(16, 185, 129, 0.4)";
-        } else if (prob.difficulty === "Medium") {
-            probDifficulty.style.color = "var(--accent-amber)";
-            probDifficulty.style.borderColor = "rgba(245, 158, 11, 0.4)";
-        } else {
-            probDifficulty.style.color = "var(--accent-rose)";
-            probDifficulty.style.borderColor = "rgba(244, 63, 94, 0.4)";
+    function renderConversationsList(convs) {
+        conversationsList.innerHTML = "";
+        if (convs.length === 0) {
+            conversationsList.innerHTML = `<div class="empty-state">No saved chats yet. Click "New Chat" to begin!</div>`;
+            return;
         }
-    }
 
-    problemSelect.addEventListener("change", (e) => {
-        const found = problemsData.find(p => p.id === e.target.value);
-        if (found) {
-            renderProblem(found);
-            // Announce in chat
-            appendSystemMessage(`📌 Switched problem to: <strong>${found.title}</strong> (${found.category})`);
-        }
-    });
+        convs.forEach(c => {
+            const item = document.createElement("div");
+            item.className = `conv-item ${currentConversationId === c.id ? 'active' : ''}`;
+            item.dataset.convId = c.id;
 
-    // Toggle problem drawer
-    toggleProblemBtn.addEventListener("click", () => {
-        if (probBody.style.display === "none") {
-            probBody.style.display = "flex";
-            toggleProblemBtn.innerHTML = `
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="6 9 12 15 18 9"></polyline>
-                </svg>`;
-        } else {
-            probBody.style.display = "none";
-            toggleProblemBtn.innerHTML = `
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="6 15 12 9 18 15"></polyline>
-                </svg>`;
-        }
-    });
+            const dateStr = formatRelativeDate(c.updated_at);
+            item.innerHTML = `
+                <div class="conv-title-wrap">
+                    <span class="conv-title">${escapeHtml(c.title || "DSA Chat")}</span>
+                    <span class="conv-date">${dateStr} &bull; ${c.message_count || 0} msgs</span>
+                </div>
+                <div class="conv-actions">
+                    <button class="btn-rename-conv" title="Rename conversation">✏️</button>
+                    <button class="btn-delete-conv" title="Delete conversation">&times;</button>
+                </div>
+            `;
 
-    // -------------------------------------------------------------
-    // 2. Mode Toggle (Policy vs Baseline)
-    // -------------------------------------------------------------
-    policyToggle.addEventListener("change", (e) => {
-        const isPolicy = e.target.checked;
-        modeLabel.textContent = isPolicy ? "Mode: Adaptive RL" : "Mode: Baseline (Generic)";
-        actionMethod.textContent = isPolicy ? "RL Policy Active" : "Baseline Mode";
-        appendSystemMessage(isPolicy ? 
-            "⚡ <strong>Adaptive RL Policy Mode Activated.</strong> The system will monitor extraction and intervene with Q-learning actions." : 
-            "🤖 <strong>Baseline Mode Activated.</strong> The tutor will answer like a standard LLM without anti-offloading interventions."
-        );
-    });
+            item.addEventListener("click", (e) => {
+                if (e.target.classList.contains("btn-rename-conv")) {
+                    e.stopPropagation();
+                    openRenameModal(c.id, c.title);
+                    return;
+                }
+                if (e.target.classList.contains("btn-delete-conv")) {
+                    e.stopPropagation();
+                    deleteConversation(c.id);
+                    return;
+                }
+                loadConversationMessages(c.id);
+            });
 
-    // -------------------------------------------------------------
-    // 3. Quick Test Chips
-    // -------------------------------------------------------------
-    document.querySelectorAll(".chip").forEach(chip => {
-        chip.addEventListener("click", () => {
-            const promptText = chip.getAttribute("data-prompt");
-            if (promptText && !isSending) {
-                messageInput.value = promptText;
-                sendMessage();
-            }
+            conversationsList.appendChild(item);
         });
-    });
+    }
+
+    async function loadConversationMessages(convId) {
+        try {
+            const resp = await fetch(`/api/conversations/${convId}`);
+            if (!resp.ok) throw new Error("Conversation not found");
+            const data = await resp.json();
+
+            currentConversationId = convId;
+            const conv = data.conversation;
+            const topic = data.topic;
+            const messages = data.messages || [];
+
+            currentTopicId = conv.topic_id || (topic ? topic.concept_id : null);
+
+            // Update sidebar selection
+            document.querySelectorAll(".conv-item").forEach(el => {
+                el.classList.toggle("active", el.dataset.convId === convId);
+            });
+
+            // Update Topbar
+            activeTopicTitle.textContent = conv.title || "DSA Chat";
+            if (topic) {
+                activeCategory.textContent = topic.category || "DSA";
+                activeCategory.style.display = "inline-block";
+                activeTopicSub.textContent = `Concept: ${topic.concept_name}`;
+            } else {
+                activeCategory.style.display = "none";
+                activeTopicSub.textContent = "Adaptive AI mentor ready to guide your learning.";
+            }
+
+            // Render Messages
+            chatMessages.innerHTML = "";
+            if (messages.length === 0) {
+                renderWelcomeCard();
+            } else {
+                messages.forEach(m => {
+                    if (m.role === "student") {
+                        appendStudentMessage(m.content);
+                    } else if (m.role === "tutor") {
+                        appendTutorMessage(m.content, m.id, m.feedback_rating, m.feedback_label);
+                    }
+                });
+            }
+
+            scrollToBottom();
+        } catch (err) {
+            console.error("Failed to load conversation:", err);
+        }
+    }
+
+    function startNewChat() {
+        currentConversationId = null;
+        currentTopicId = null;
+        activeTopicTitle.textContent = "New Chat";
+        activeCategory.style.display = "none";
+        activeTopicSub.textContent = "Adaptive AI mentor ready to guide your learning.";
+        document.querySelectorAll(".conv-item").forEach(el => el.classList.remove("active"));
+        chatMessages.innerHTML = "";
+        renderWelcomeCard();
+        checkRetention();
+        messageInput.focus();
+    }
+
+    newChatBtn.addEventListener("click", startNewChat);
+
+    async function deleteConversation(convId) {
+        try {
+            await fetch(`/api/conversations/${convId}`, { method: "DELETE" });
+            if (currentConversationId === convId) {
+                startNewChat();
+            }
+            await loadConversations();
+            await loadMastery();
+        } catch (err) {
+            console.error("Failed to delete conversation:", err);
+        }
+    }
 
     // -------------------------------------------------------------
-    // 4. Send Message & Receive Inference
+    // 3. Conversation Renaming
+    // -------------------------------------------------------------
+    function openRenameModal(convId, currentTitle) {
+        renamingConvId = convId;
+        renameInput.value = currentTitle || "DSA Chat";
+        renameModal.style.display = "flex";
+        setTimeout(() => renameInput.focus(), 50);
+    }
+
+    renameHeaderBtn.addEventListener("click", () => {
+        if (!currentConversationId) return;
+        openRenameModal(currentConversationId, activeTopicTitle.textContent);
+    });
+
+    closeRenameModal.addEventListener("click", () => renameModal.style.display = "none");
+    cancelRenameBtn.addEventListener("click", () => renameModal.style.display = "none");
+
+    saveRenameBtn.addEventListener("click", saveRename);
+    renameInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") saveRename();
+        if (e.key === "Escape") renameModal.style.display = "none";
+    });
+
+    async function saveRename() {
+        const newTitle = renameInput.value.trim();
+        if (!newTitle || !renamingConvId) return;
+
+        try {
+            const resp = await fetch(`/api/conversations/${renamingConvId}/title`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ title: newTitle })
+            });
+
+            if (resp.ok) {
+                if (currentConversationId === renamingConvId) {
+                    activeTopicTitle.textContent = newTitle;
+                }
+                renameModal.style.display = "none";
+                await loadConversations();
+            }
+        } catch (err) {
+            console.error("Failed to rename conversation:", err);
+        }
+    }
+
+    // -------------------------------------------------------------
+    // 4. Send Message & Receive Response
     // -------------------------------------------------------------
     async function sendMessage() {
         const text = messageInput.value.trim();
@@ -185,18 +307,28 @@ document.addEventListener("DOMContentLoaded", () => {
         messageInput.value = "";
         messageInput.style.height = "auto";
 
-        // Append Student Message
+        // Remove welcome card if present
+        const welcome = document.getElementById("welcomeCard");
+        if (welcome) welcome.remove();
+
+        // Append student message bubble
         appendStudentMessage(text);
 
-        // Show Typing Indicator
+        // Show typing indicator
         const typingId = appendTypingIndicator();
 
         try {
-            const usePolicy = policyToggle.checked;
+            const payload = {
+                message: text,
+                conversation_id: currentConversationId,
+                topic_id: currentTopicId,
+                use_policy: true
+            };
+
             const resp = await fetch("/api/chat", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ message: text, use_policy: usePolicy })
+                body: JSON.stringify(payload)
             });
 
             const data = await resp.json();
@@ -205,8 +337,28 @@ document.addEventListener("DOMContentLoaded", () => {
             if (data.error) {
                 appendSystemMessage(`⚠️ Error: ${data.error}`);
             } else {
-                appendTutorMessage(data.response, data.action_taken, data.is_fallback);
-                updateDiagnostics(data);
+                // If new conversation was created on the backend
+                if (!currentConversationId && data.conversation_id) {
+                    currentConversationId = data.conversation_id;
+                }
+
+                // If auto-title was updated
+                if (data.title) {
+                    activeTopicTitle.textContent = data.title;
+                }
+                if (data.topic_id) {
+                    currentTopicId = data.topic_id;
+                }
+                if (data.topic_name) {
+                    activeCategory.textContent = data.topic_name;
+                    activeCategory.style.display = "inline-block";
+                    activeTopicSub.textContent = `Concept: ${data.topic_name}`;
+                }
+
+                appendTutorMessage(data.response, data.message_id);
+                updateTelemetryModal(data);
+                loadConversations();
+                loadMastery();
             }
         } catch (err) {
             removeTypingIndicator(typingId);
@@ -227,14 +379,23 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    // Auto-grow textarea
     messageInput.addEventListener("input", function() {
         this.style.height = "auto";
         this.style.height = (this.scrollHeight) + "px";
     });
 
+    // Quick prompt chips
+    document.querySelectorAll(".qp-chip").forEach(chip => {
+        chip.addEventListener("click", () => {
+            const prompt = chip.dataset.prompt;
+            messageInput.value = prompt;
+            messageInput.focus();
+            sendMessage();
+        });
+    });
+
     // -------------------------------------------------------------
-    // 5. Message Rendering & Helpers
+    // 5. Message Rendering & Feedback System
     // -------------------------------------------------------------
     function appendStudentMessage(text) {
         const row = document.createElement("div");
@@ -245,29 +406,97 @@ document.addEventListener("DOMContentLoaded", () => {
             </div>
             <div class="avatar student-avatar">👤</div>
         `;
-        chatContainer.appendChild(row);
+        chatMessages.appendChild(row);
         scrollToBottom();
     }
 
-    function appendTutorMessage(text, actionName, isFallback) {
+    function appendTutorMessage(text, messageId = null, feedbackRating = null, feedbackLabel = null) {
         const row = document.createElement("div");
         row.className = "message-row tutor-row";
+        row.dataset.messageId = messageId || "";
 
-        const badgeClass = `badge-${actionName}`;
-        const fallbackNote = isFallback ? '<span title="Template fallback used"> (Fallback)</span>' : '';
+        let feedbackHtml = "";
+        if (messageId) {
+            const clearActive = feedbackLabel === "clear" ? "active" : "";
+            const confusedActive = feedbackLabel === "confused" ? "active" : "";
+            const rateText = feedbackRating ? `⭐ Rated ${feedbackRating}/10` : "⭐ Rate Confidence (1-10)";
+
+            feedbackHtml = `
+                <div class="feedback-bar" data-msg-id="${messageId}">
+                    <span class="feedback-label">Comprehension:</span>
+                    <button class="feedback-btn ${clearActive}" data-label="clear" title="I understand this step">
+                        👍 Clear
+                    </button>
+                    <button class="feedback-btn ${confusedActive}" data-label="confused" title="Still need clarification">
+                        🤔 Need Help
+                    </button>
+                    <button class="feedback-btn feedback-rate-btn" data-action="rate" title="Rate confidence from 1 to 10">
+                        ${rateText}
+                    </button>
+                </div>
+            `;
+        }
 
         row.innerHTML = `
             <div class="avatar tutor-avatar">🎓</div>
             <div class="message-bubble tutor-bubble">
                 <div class="tutor-bubble-header">
-                    <span class="bubble-action-badge ${badgeClass}">${actionName}</span>
-                    <span class="bubble-meta">Adaptive Tutor${fallbackNote}</span>
+                    <span>DSA Mentor</span>
                 </div>
                 <div class="message-text">${formatMessageContent(text)}</div>
+                ${feedbackHtml}
             </div>
         `;
-        chatContainer.appendChild(row);
+
+        const bar = row.querySelector(".feedback-bar");
+        if (bar) {
+            bar.querySelectorAll(".feedback-btn").forEach(btn => {
+                btn.addEventListener("click", () => {
+                    const action = btn.dataset.action;
+                    const label = btn.dataset.label;
+                    if (action === "rate") {
+                        openConfidenceModal(messageId, currentTopicId);
+                    } else if (label) {
+                        submitFeedback(messageId, null, label, currentTopicId, btn);
+                    }
+                });
+            });
+        }
+
+        chatMessages.appendChild(row);
         scrollToBottom();
+    }
+
+    async function submitFeedback(messageId, rating, label, conceptId, clickedBtn = null) {
+        try {
+            const resp = await fetch("/api/feedback", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    message_id: messageId,
+                    rating: rating,
+                    label: label,
+                    concept_id: conceptId
+                })
+            });
+
+            if (resp.ok && clickedBtn) {
+                const parent = clickedBtn.closest(".feedback-bar");
+                parent.querySelectorAll(".feedback-btn").forEach(b => {
+                    if (b.dataset.label) b.classList.remove("active");
+                });
+                clickedBtn.classList.add("active");
+                loadMastery();
+
+                if (label === "confused") {
+                    appendSystemMessage("💡 <em>Feedback noted: The tutor will adapt by breaking concepts into smaller, simpler steps.</em>");
+                } else if (label === "clear") {
+                    appendSystemMessage("👍 <em>Feedback noted: Concept clarity recorded! The tutor will continue advancing.</em>");
+                }
+            }
+        } catch (err) {
+            console.error("Failed to submit feedback:", err);
+        }
     }
 
     function appendSystemMessage(htmlText) {
@@ -279,26 +508,25 @@ document.addEventListener("DOMContentLoaded", () => {
                 ${htmlText}
             </div>
         `;
-        chatContainer.appendChild(row);
+        chatMessages.appendChild(row);
         scrollToBottom();
     }
 
     function appendTypingIndicator() {
-        const id = "typing-" + Date.now();
+        const id = `typing_${Date.now()}`;
         const row = document.createElement("div");
-        row.id = id;
         row.className = "message-row tutor-row";
+        row.id = id;
         row.innerHTML = `
             <div class="avatar tutor-avatar">🎓</div>
-            <div class="message-bubble tutor-bubble">
-                <div class="typing-skeleton">
-                    <div class="dot-pulse"></div>
-                    <div class="dot-pulse"></div>
-                    <div class="dot-pulse"></div>
+            <div class="message-bubble tutor-bubble" style="padding: 12px 18px;">
+                <div style="display:flex; gap:6px; align-items:center;">
+                    <span style="font-size:0.75rem; color:var(--text-muted);">Thinking...</span>
+                    <span class="pulse-indicator"></span>
                 </div>
             </div>
         `;
-        chatContainer.appendChild(row);
+        chatMessages.appendChild(row);
         scrollToBottom();
         return id;
     }
@@ -308,174 +536,294 @@ document.addEventListener("DOMContentLoaded", () => {
         if (el) el.remove();
     }
 
-    function scrollToBottom() {
-        chatContainer.scrollTop = chatContainer.scrollHeight;
-    }
-
-    function escapeHtml(str) {
+    function renderWelcomeCard() {
+        if (document.getElementById("welcomeCard")) return;
         const div = document.createElement("div");
-        div.textContent = str;
-        return div.innerHTML;
-    }
-
-    function formatMessageContent(raw) {
-        if (!raw) return "";
-
-        // Check for code blocks ```lang ... ```
-        const codeBlockRegex = /```([a-zA-Z]*)\n([\s\S]*?)```/g;
-        let formatted = raw.replace(codeBlockRegex, (match, lang, code) => {
-            return `<pre><code class="language-${lang}">${escapeHtml(code.trim())}</code></pre>`;
-        });
-
-        // Inline code `...`
-        formatted = formatted.replace(/`([^`]+)`/g, (match, code) => {
-            return `<code>${escapeHtml(code)}</code>`;
-        });
-
-        // Split paragraphs
-        const paragraphs = formatted.split(/\n\s*\n/);
-        return paragraphs.map(p => `<p>${p.replace(/\n/g, "<br>")}</p>`).join("");
+        div.className = "tutor-welcome-card";
+        div.id = "welcomeCard";
+        div.innerHTML = `
+            <div class="welcome-badge">🎓 Adaptive Learning Active</div>
+            <h3>Welcome to your Personal DSA Mentor</h3>
+            <p>
+                Ask about any Data Structure or Algorithm! Whether you're stuck on <strong>AVL Trees</strong>, 
+                curious about <strong>Dynamic Programming</strong>, or debugging an edge case, 
+                the mentor guides your independent reasoning without giving away direct code dumps.
+            </p>
+            <div class="welcome-tips">
+                <div class="tip-card">
+                    <span class="tip-icon">💡</span>
+                    <div><strong>Ask freely</strong> — start any topic, e.g. <em>"How do AVL rotations work?"</em></div>
+                </div>
+                <div class="tip-card">
+                    <span class="tip-icon">🪜</span>
+                    <div><strong>Step-by-step guidance</strong> — if overwhelmed, ask to break down the approach into smaller parts.</div>
+                </div>
+                <div class="tip-card">
+                    <span class="tip-icon">📊</span>
+                    <div><strong>Track your confidence</strong> — rate your comprehension (1-10) after each explanation.</div>
+                </div>
+            </div>
+        `;
+        chatMessages.appendChild(div);
     }
 
     // -------------------------------------------------------------
-    // 6. Update Real-Time ML Diagnostics HUD
+    // 6. Spaced Retention Check-In
     // -------------------------------------------------------------
-    function updateDiagnostics(data) {
-        const action = data.action_taken || "REDIRECT";
-        const info = ACTION_INFO[action] || ACTION_INFO["REDIRECT"];
+    async function checkRetention() {
+        try {
+            const resp = await fetch("/api/checkin");
+            const data = await resp.json();
+            const checkin = data.checkin;
 
-        // Update Action Card
-        actionIcon.textContent = info.icon;
-        actionName.textContent = info.title;
-        actionDesc.textContent = info.desc;
-
-        // Apply Card Theme
-        actionCard.className = "hud-card action-card " + info.theme;
-
-        // Update Session & Turn Info
-        const turnNum = data.turn_number || 1;
-        const struggle = data.struggle_turns || 0;
-        sessionCounter.textContent = `Turn ${turnNum} • Struggle: ${struggle}`;
-
-        // Update Extraction Gauge
-        const extrProb = Math.min(Math.max(data.extraction_score || 0, 0), 1);
-        const extrPct = (extrProb * 100).toFixed(1);
-        extractionVal.textContent = `${extrPct}%`;
-        extractionBar.style.width = `${extrPct}%`;
-
-        // Update Engagement Gauge
-        const engScore = Math.min(Math.max(data.engagement_score || 0, 0), 1);
-        const engPct = (engScore * 100).toFixed(1);
-        engagementVal.textContent = `${engPct}%`;
-        engagementBar.style.width = `${engPct}%`;
-
-        // Update Struggle Dots
-        struggleDots.forEach((dot, idx) => {
-            if (idx < struggle) {
-                dot.className = "s-dot active";
+            if (checkin && checkin.concept_name) {
+                activeCheckinData = checkin;
+                retentionText.innerHTML = `
+                    Last time, you practiced <strong>${escapeHtml(checkin.concept_name)}</strong> 
+                    (${checkin.confidence_score > 0 ? 'Confidence: ' + checkin.confidence_score + '/10' : 'in progress'}). 
+                    How confident are you feeling with that concept today?
+                `;
+                retentionBanner.style.display = "flex";
             } else {
-                dot.className = "s-dot";
+                retentionBanner.style.display = "none";
             }
-        });
+        } catch (err) {
+            console.error("Failed to check retention:", err);
+            retentionBanner.style.display = "none";
+        }
+    }
 
-        if (struggle === 0) {
-            struggleStatus.textContent = "Refreshed";
-            struggleStatus.style.color = "var(--accent-emerald)";
-        } else if (struggle < 3) {
-            struggleStatus.textContent = "Cognitive Load Normal";
-            struggleStatus.style.color = "var(--accent-amber)";
-        } else {
-            struggleStatus.textContent = "Fatigue / Pause Advised";
-            struggleStatus.style.color = "var(--action-delay)";
+    retentionTestBtn.addEventListener("click", () => {
+        if (!activeCheckinData) return;
+        const prompt = `Can you ask me a quick 1-minute question to test my understanding of ${activeCheckinData.concept_name}?`;
+        messageInput.value = prompt;
+        retentionBanner.style.display = "none";
+        sendMessage();
+    });
+
+    retentionRateBtn.addEventListener("click", () => {
+        if (!activeCheckinData) return;
+        openConfidenceModal(null, activeCheckinData.concept_id);
+    });
+
+    retentionDismissBtn.addEventListener("click", () => {
+        retentionBanner.style.display = "none";
+    });
+
+    // -------------------------------------------------------------
+    // 7. Confidence Rating Modal
+    // -------------------------------------------------------------
+    function openConfidenceModal(messageId = null, conceptId = null) {
+        activeModalTarget = { messageId, conceptId };
+        modalConceptName.textContent = conceptId ? `Concept: ${conceptId.replace(/_/g, ' ').toUpperCase()}` : "Rate Concept Confidence";
+
+        confidenceSlider.value = 7;
+        confidenceNum.textContent = 7;
+        confidenceLabel.textContent = CONFIDENCE_DESCRIPTIONS[7];
+        confidenceNotes.value = "";
+
+        confidenceModal.style.display = "flex";
+    }
+
+    confidenceSlider.addEventListener("input", function() {
+        const val = parseInt(this.value);
+        confidenceNum.textContent = val;
+        confidenceLabel.textContent = CONFIDENCE_DESCRIPTIONS[val] || "";
+    });
+
+    closeConfidenceModal.addEventListener("click", () => confidenceModal.style.display = "none");
+    cancelConfidenceBtn.addEventListener("click", () => confidenceModal.style.display = "none");
+
+    saveConfidenceBtn.addEventListener("click", async () => {
+        const val = parseInt(confidenceSlider.value);
+        const notes = confidenceNotes.value.trim();
+
+        if (activeModalTarget.conceptId) {
+            await fetch("/api/checkin/resolve", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    concept_id: activeModalTarget.conceptId,
+                    confidence_score: val,
+                    notes: notes
+                })
+            });
         }
 
-        // Update Q-Values Bar Graph
-        const qVals = data.q_values || [0, 0, 0, 0];
-        const maxQ = Math.max(...qVals);
-        const minQ = Math.min(...qVals);
-        const range = (maxQ - minQ) || 1.0;
+        if (activeModalTarget.messageId) {
+            await fetch("/api/feedback", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    message_id: activeModalTarget.messageId,
+                    rating: val,
+                    concept_id: activeModalTarget.conceptId
+                })
+            });
 
-        qVals.forEach((q, idx) => {
-            const valEl = document.getElementById(`qVal-${idx}`);
-            const fillEl = document.getElementById(`qFill-${idx}`);
-            const groupEl = document.getElementById(`qGroup-${idx}`);
-
-            if (valEl) valEl.textContent = q >= 0 ? `+${q.toFixed(4)}` : q.toFixed(4);
-
-            // Normalized visual percentage for bar width (min 15% for visibility)
-            let widthPct = 15;
-            if (maxQ > minQ) {
-                widthPct = 15 + ((q - minQ) / range) * 80;
-            } else if (maxQ > 0) {
-                widthPct = 60;
+            const row = document.querySelector(`.message-row[data-message-id="${activeModalTarget.messageId}"]`);
+            if (row) {
+                const btn = row.querySelector(".feedback-rate-btn");
+                if (btn) btn.textContent = `⭐ Rated ${val}/10`;
             }
-            if (fillEl) fillEl.style.width = `${widthPct}%`;
+            if (val <= 4) {
+                appendSystemMessage(`💡 <em>Rated ${val}/10: The tutor is adjusting to provide simpler scaffolding and analogies.</em>`);
+            } else if (val >= 8) {
+                appendSystemMessage(`⭐ <em>Rated ${val}/10: High confidence recorded! Ready for deeper algorithmic reasoning.</em>`);
+            }
+        }
 
-            // Highlight winning action
-            if (groupEl) {
-                if (idx === data.action_id && data.action_taken !== "BASELINE") {
-                    groupEl.classList.add("winning-action");
+        confidenceModal.style.display = "none";
+        retentionBanner.style.display = "none";
+        await loadMastery();
+    });
+
+    // -------------------------------------------------------------
+    // 8. Mastery Computation
+    // -------------------------------------------------------------
+    async function loadMastery() {
+        try {
+            const resp = await fetch("/api/concepts");
+            const data = await resp.json();
+            const concepts = data.concepts || [];
+
+            const practiced = concepts.filter(c => (c.total_turns || 0) > 0 || (c.confidence_score || 0) > 0);
+            const mastered = concepts.filter(c => (c.confidence_score || 0) >= 8);
+
+            const pct = concepts.length > 0 ? Math.round((mastered.length / concepts.length) * 100) : 0;
+            masteryPercent.textContent = `${mastered.length} Mastered`;
+            masteryBarFill.style.width = `${pct}%`;
+            masteryPracticed.textContent = `${practiced.length} topics studied`;
+
+            const scores = practiced.map(c => c.confidence_score).filter(s => s > 0);
+            const avg = scores.length > 0 ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1) : "--";
+            masteryAvgConf.textContent = `Avg: ${avg}/10`;
+        } catch (err) {
+            console.error("Mastery fetch error:", err);
+        }
+    }
+
+    // -------------------------------------------------------------
+    // 9. Instructor Telemetry Modal
+    // -------------------------------------------------------------
+    openTelemetryBtn.addEventListener("click", () => {
+        telemetryModal.style.display = "flex";
+    });
+
+    closeTelemetryModal.addEventListener("click", () => {
+        telemetryModal.style.display = "none";
+    });
+
+    function updateTelemetryModal(data) {
+        if (!data) return;
+
+        const ext = parseFloat(data.extraction_score || 0);
+        const eng = parseFloat(data.engagement_score || 0);
+        const action = data.action_taken || "REDIRECT";
+        const qVals = data.q_values || [0, 0, 0, 0];
+
+        tExtractionVal.textContent = ext.toFixed(3);
+        tExtractionBar.style.width = `${Math.min(100, ext * 100)}%`;
+
+        tEngagementVal.textContent = eng.toFixed(3);
+        tEngagementBar.style.width = `${Math.min(100, eng * 100)}%`;
+
+        tActionVal.textContent = action;
+        tActionDesc.textContent = `Action ID ${data.action_id} selected by PyTorch Q-Network`;
+
+        const qBoxes = [
+            { id: "qNum0", box: "qBox0", val: qVals[0] },
+            { id: "qNum1", box: "qBox1", val: qVals[1] },
+            { id: "qNum2", box: "qBox2", val: qVals[2] },
+            { id: "qNum3", box: "qBox3", val: qVals[3] }
+        ];
+
+        let maxIdx = 0;
+        let maxVal = -999;
+        qVals.forEach((v, i) => {
+            if (v > maxVal) { maxVal = v; maxIdx = i; }
+        });
+
+        qBoxes.forEach((q, idx) => {
+            const el = document.getElementById(q.id);
+            const box = document.getElementById(q.box);
+            if (el) el.textContent = (q.val || 0).toFixed(3);
+            if (box) {
+                if (idx === maxIdx) {
+                    box.style.borderColor = "var(--accent-primary)";
+                    box.style.background = "rgba(99, 102, 241, 0.15)";
                 } else {
-                    groupEl.classList.remove("winning-action");
+                    box.style.borderColor = "var(--border-subtle)";
+                    box.style.background = "rgba(255, 255, 255, 0.02)";
                 }
             }
         });
     }
 
-    // -------------------------------------------------------------
-    // 7. Reset Conversation
-    // -------------------------------------------------------------
-    resetBtn.addEventListener("click", async () => {
+    async function loadStatus() {
         try {
-            await fetch("/api/reset", { method: "POST" });
-            chatContainer.innerHTML = "";
-
-            // Re-render welcome card
-            const welcomeCard = document.createElement("div");
-            welcomeCard.className = "welcome-card";
-            welcomeCard.innerHTML = `
-                <div class="welcome-icon">🎓</div>
-                <h3>Session Reset & Refreshed</h3>
-                <p>Cognitive struggle counters and conversation context have been reset to Turn 0.</p>
-                <div class="feature-pills">
-                    <span class="pill pill-redirect">🛑 REDIRECT (Anti-Shortcut)</span>
-                    <span class="pill pill-scaffold">🪜 SCAFFOLD (Deconstruct)</span>
-                    <span class="pill pill-socratic">💡 SOCRATIC (Inquire)</span>
-                    <span class="pill pill-delay">⏳ DELAY (Anti-Burnout)</span>
-                </div>
-            `;
-            chatContainer.appendChild(welcomeCard);
-
-            // Reset HUD
-            sessionCounter.textContent = "Turn 0 • Struggle: 0";
-            extractionVal.textContent = "0.0%";
-            extractionBar.style.width = "0%";
-            engagementVal.textContent = "0.0%";
-            engagementBar.style.width = "0%";
-            struggleDots.forEach(d => d.className = "s-dot");
-            struggleStatus.textContent = "Refreshed";
-            struggleStatus.style.color = "var(--accent-emerald)";
-
-            actionCard.className = "hud-card action-card";
-            actionIcon.textContent = "⚡";
-            actionName.textContent = "AWAITING INPUT";
-            actionDesc.textContent = "Send a student prompt to observe RL intervention selection.";
-
-            [0, 1, 2, 3].forEach(idx => {
-                const valEl = document.getElementById(`qVal-${idx}`);
-                const fillEl = document.getElementById(`qFill-${idx}`);
-                const groupEl = document.getElementById(`qGroup-${idx}`);
-                if (valEl) valEl.textContent = "0.0000";
-                if (fillEl) fillEl.style.width = "0%";
-                if (groupEl) groupEl.classList.remove("winning-action");
-            });
-
-            appendSystemMessage("🔄 <strong>Session successfully reset.</strong> Ready for fresh student interaction.");
+            const resp = await fetch("/api/status");
+            const data = await resp.json();
+            if (data.llm_provider) {
+                providerPill.textContent = `${data.llm_provider.toUpperCase()} (${data.llm_model || 'qwen2.5:7b'})`;
+            }
         } catch (err) {
-            console.error("Reset failed:", err);
+            console.error("Status fetch failed:", err);
         }
-    });
+    }
 
-    // Kick off initialization
-    loadProblems();
+    function scrollToBottom() {
+        requestAnimationFrame(() => {
+            chatViewport.scrollTop = chatViewport.scrollHeight;
+        });
+    }
+
+    function escapeHtml(str) {
+        if (!str) return "";
+        return str.replace(/[&<>"']/g, m => ({
+            "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;"
+        }[m]));
+    }
+
+    function formatMessageContent(rawText) {
+        if (!rawText) return "";
+        let formatted = rawText;
+
+        formatted = formatted.replace(/```(?:[a-zA-Z0-9_-]+)?\n([\s\S]*?)```/g, (match, code) => {
+            return `<pre><code>${escapeHtml(code.trim())}</code></pre>`;
+        });
+
+        formatted = formatted.replace(/`([^`]+)`/g, (match, code) => {
+            return `<code>${escapeHtml(code)}</code>`;
+        });
+
+        formatted = formatted.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+
+        const paragraphs = formatted.split("\n\n").map(p => {
+            if (p.startsWith("<pre>") && p.endsWith("</pre>")) return p;
+            return `<p>${p.replace(/\n/g, "<br>")}</p>`;
+        });
+
+        return paragraphs.join("");
+    }
+
+    function formatRelativeDate(isoStr) {
+        if (!isoStr) return "";
+        const date = new Date(isoStr);
+        const now = new Date();
+        const diffMs = now - date;
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMins / 60);
+        const diffDays = Math.floor(diffHours / 24);
+
+        if (diffMins < 2) return "Just now";
+        if (diffMins < 60) return `${diffMins}m ago`;
+        if (diffHours < 24) return `${diffHours}h ago`;
+        if (diffDays === 1) return "Yesterday";
+        if (diffDays < 7) return `${diffDays}d ago`;
+        return date.toLocaleDateString();
+    }
+
+    // Initialize application
+    init();
 });

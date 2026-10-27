@@ -3,273 +3,326 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Adaptive DSA Tutor — Reinforcement Learning Against Cognitive Offloading</title>
+    <title>DSA AI Mentor — Adaptive Learning Platform</title>
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/style.css">
 </head>
-<body>
-    <!-- Top Navigation Bar -->
-    <header class="navbar">
-        <div class="nav-brand">
-            <div class="logo-orb">
-                <span class="orb-core"></span>
-            </div>
-            <div class="brand-text">
-                <span class="brand-title">Adaptive DSA Tutor</span>
-                <span class="brand-subtitle">RL-Guided Anti-Cognitive Offloading System</span>
-            </div>
-        </div>
+<body class="dsa-platform">
 
-        <div class="nav-controls">
-            <!-- Mode Toggle: Policy vs Baseline -->
-            <div class="mode-toggle-card">
-                <span class="mode-label" id="modeLabel">Mode: Adaptive RL</span>
-                <label class="switch" title="Toggle between RL Policy and Baseline (ChatGPT) Mode">
-                    <input type="checkbox" id="policyToggle" checked>
-                    <span class="slider round"></span>
-                </label>
-            </div>
+    <!-- App Shell Container -->
+    <div class="app-layout">
 
-            <!-- Problem Selector Dropdown -->
-            <div class="select-wrapper">
-                <select id="problemSelect" aria-label="Select DSA Problem">
-                    <!-- Populated dynamically via JS -->
-                </select>
-            </div>
-
-            <!-- Reset Button -->
-            <button id="resetBtn" class="btn btn-outline" title="Reset current session and struggle state">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
-                    <path d="M3 3v5h5"/>
-                </svg>
-                <span>Reset Session</span>
-            </button>
-        </div>
-    </header>
-
-    <!-- Main Workspace Container -->
-    <main class="main-layout">
-        <!-- Left / Center Section: Problem Context & Chat Stream -->
-        <section class="chat-section">
-            <!-- Active Problem Context Drawer -->
-            <div class="problem-card" id="problemCard">
-                <div class="problem-header">
-                    <div class="problem-meta">
-                        <span class="badge badge-difficulty" id="probDifficulty">Easy</span>
-                        <span class="badge badge-category" id="probCategory">Linked Lists</span>
-                        <h2 class="problem-title" id="probTitle">Reverse a Linked List</h2>
-                    </div>
-                    <button class="btn-icon" id="toggleProblemBtn" title="Collapse / Expand Problem Description">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="6 9 12 15 18 9"></polyline>
+        <!-- ============================================================ -->
+        <!-- LEFT SIDEBAR: NEW CHAT & RECENT CONVERSATIONS              -->
+        <!-- ============================================================ -->
+        <aside class="sidebar" id="sidebar">
+            <!-- Sidebar Header & Brand -->
+            <div class="sidebar-header">
+                <div class="brand">
+                    <div class="brand-icon">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                            <path d="M8 7h8"/>
+                            <path d="M8 11h6"/>
                         </svg>
-                    </button>
+                    </div>
+                    <div class="brand-info">
+                        <span class="brand-name">DSA AI Mentor</span>
+                        <span class="brand-tag">Adaptive Tutor</span>
+                    </div>
                 </div>
-                <div class="problem-body" id="probBody">
-                    <p class="prob-desc" id="probDesc">Given the head of a singly linked list, reverse the list, and return the reversed list.</p>
-                    <div class="prob-snippet">
-                        <span class="snippet-label">Example:</span>
-                        <code id="probExample">Input: head = [1,2,3,4,5] -> Output: [5,4,3,2,1]</code>
+
+                <!-- Primary New Chat Button -->
+                <button id="newChatBtn" class="btn btn-new-chat" title="Start a fresh conversation">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                    <span>New Chat</span>
+                </button>
+            </div>
+
+            <!-- Scrollable Conversations List -->
+            <div class="sidebar-scrollable">
+                <div class="section-title-row">
+                    <span class="section-heading">Your Conversations</span>
+                    <span class="section-badge" id="chatCountBadge">0</span>
+                </div>
+                <div class="conversations-list" id="conversationsList">
+                    <div class="empty-state">No saved chats yet. Click "New Chat" to begin!</div>
+                </div>
+            </div>
+
+            <!-- Sidebar Footer: Concept Mastery & Telemetry -->
+            <div class="sidebar-footer">
+                <div class="mastery-summary-card" id="masterySummaryCard">
+                    <div class="mastery-header">
+                        <span class="mastery-title">Concepts Explored</span>
+                        <span class="mastery-percent" id="masteryPercent">0 Mastered</span>
+                    </div>
+                    <div class="mastery-bar-bg">
+                        <div class="mastery-bar-fill" id="masteryBarFill" style="width: 0%"></div>
+                    </div>
+                    <div class="mastery-stats">
+                        <span id="masteryPracticed">0 topics studied</span>
+                        <span id="masteryAvgConf">Avg: --/10</span>
+                    </div>
+                </div>
+
+                <!-- Instructor Telemetry Modal Trigger -->
+                <button id="openTelemetryBtn" class="btn btn-telemetry-toggle" title="View server RL inference telemetry (For instructors/evaluators)">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                    </svg>
+                    <span>Instructor Telemetry</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- ============================================================ -->
+        <!-- MAIN LEARNING & CHAT WORKSPACE                             -->
+        <!-- ============================================================ -->
+        <main class="main-content">
+
+            <!-- Topbar with Editable Title -->
+            <header class="topbar">
+                <div class="active-topic-display">
+                    <div class="topic-icon-wrap" id="topTopicIcon">💬</div>
+                    <div class="topic-info">
+                        <div class="topic-title-row">
+                            <h2 class="active-topic-title" id="activeTopicTitle" title="Click to rename">New Chat</h2>
+                            <button class="btn-icon-rename" id="renameHeaderBtn" title="Rename this conversation">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                </svg>
+                            </button>
+                            <span class="badge badge-category" id="activeCategory" style="display: none;">DSA</span>
+                        </div>
+                        <p class="active-topic-sub" id="activeTopicSub">Adaptive AI mentor ready to guide your learning.</p>
+                    </div>
+                </div>
+
+            </header>
+
+            <!-- Retention & Spaced Mastery Check-In Banner (Teacher Requirement 3) -->
+            <div class="retention-banner" id="retentionBanner" style="display: none;">
+                <div class="retention-icon">🧠</div>
+                <div class="retention-content">
+                    <div class="retention-title">Spaced Practice Check-in</div>
+                    <p class="retention-text" id="retentionText">
+                        Last time, you were working on a concept. How confident are you feeling with it today?
+                    </p>
+                    <div class="retention-actions">
+                        <button class="btn-retention btn-retention-test" id="retentionTestBtn">
+                            ✍️ Ask Me a 1-Min Question
+                        </button>
+                        <button class="btn-retention btn-retention-rate" id="retentionRateBtn">
+                            ⭐ Rate Confidence (1-10)
+                        </button>
+                        <button class="btn-retention btn-retention-dismiss" id="retentionDismissBtn">
+                            Continue New Topic
+                        </button>
                     </div>
                 </div>
             </div>
 
-            <!-- Chat Message History -->
-            <div class="chat-container" id="chatContainer">
-                <!-- Welcome system card -->
-                <div class="welcome-card">
-                    <div class="welcome-icon">🎓</div>
-                    <h3>Interactive Pedagogical Tutor Ready</h3>
-                    <p>This tutor uses <strong>DeBERTa-v3</strong> to evaluate answer-seeking behavior and a <strong>PyTorch Q-Network</strong> to intervene before cognitive offloading occurs.</p>
-                    <div class="feature-pills">
-                        <span class="pill pill-redirect">🛑 REDIRECT (Anti-Shortcut)</span>
-                        <span class="pill pill-scaffold">🪜 SCAFFOLD (Deconstruct)</span>
-                        <span class="pill pill-socratic">💡 SOCRATIC (Inquire)</span>
-                        <span class="pill pill-delay">⏳ DELAY (Anti-Burnout)</span>
+            <!-- Chat Stream Message Container -->
+            <div class="chat-viewport" id="chatViewport">
+                <div class="chat-messages" id="chatMessages">
+                    <!-- Welcome Hero Card -->
+                    <div class="tutor-welcome-card" id="welcomeCard">
+                        <div class="welcome-badge">🎓 Adaptive Learning Active</div>
+                        <h3>Welcome to your Personal DSA Mentor</h3>
+                        <p>
+                            Ask about any Data Structure or Algorithm! Whether you're stuck on <strong>AVL Trees</strong>, 
+                            curious about <strong>Dynamic Programming</strong>, or debugging an edge case, 
+                            the mentor guides your independent reasoning without giving away direct code dumps.
+                        </p>
+                        <div class="welcome-tips">
+                            <div class="tip-card">
+                                <span class="tip-icon">💡</span>
+                                <div><strong>Ask freely</strong> — start any topic, e.g. <em>"How do AVL rotations work?"</em></div>
+                            </div>
+                            <div class="tip-card">
+                                <span class="tip-icon">🪜</span>
+                                <div><strong>Step-by-step guidance</strong> — if overwhelmed, ask to break down the approach into smaller parts.</div>
+                            </div>
+                            <div class="tip-card">
+                                <span class="tip-icon">📊</span>
+                                <div><strong>Track your confidence</strong> — rate your comprehension (1-10) after each explanation.</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Quick Demo Prompts (One-Click Testing for Evaluators) -->
-            <div class="prompt-chips-bar">
-                <span class="chips-title">Quick Demo Tests:</span>
-                <div class="chips-scroll">
-                    <button class="chip" data-prompt="Just write the complete python code to reverse a linked list, don't explain anything.">
-                        <span class="chip-dot dot-red"></span> Shortcut Demanded (Test REDIRECT)
+            <!-- Suggested Starter Questions Scrollbar -->
+            <div class="quick-prompts-bar">
+                <span class="qp-label">Suggestions:</span>
+                <div class="qp-chips">
+                    <button class="qp-chip" data-prompt="How do AVL tree rotations work? Can you explain LL and RR rotations?">
+                        <span class="chip-dot dot-blue"></span> AVL Tree Rotations
                     </button>
-                    <button class="chip" data-prompt="I am completely stuck on dynamic programming for knapsack, can you break it down into smaller steps?">
-                        <span class="chip-dot dot-yellow"></span> Overwhelmed / Stuck (Test SCAFFOLD)
+                    <button class="qp-chip" data-prompt="Why is binary search O(log n) and how do I avoid integer overflow on mid?">
+                        <span class="chip-dot dot-green"></span> Binary Search Mechanics
                     </button>
-                    <button class="chip" data-prompt="Why does dividing the search space in half give O(log n) complexity instead of O(n)?">
-                        <span class="chip-dot dot-blue"></span> Active Reasoning (Test SOCRATIC)
+                    <button class="qp-chip" data-prompt="Can you break down the 0/1 knapsack dynamic programming recurrence into steps?">
+                        <span class="chip-dot dot-yellow"></span> 0/1 Knapsack DP
                     </button>
-                    <button class="chip" data-prompt="I've been at this for an hour, I give up, this is impossible, just tell me the answer.">
-                        <span class="chip-dot dot-purple"></span> Frustrated / Burnout (Test DELAY)
+                    <button class="qp-chip" data-prompt="How does Floyd's tortoise and hare algorithm detect cycles in a linked list?">
+                        <span class="chip-dot dot-purple"></span> Cycle Detection
                     </button>
-                    <button class="chip" data-prompt="I took a break and now I am back. Give me the whole solution for detecting a cycle.">
-                        <span class="chip-dot dot-green"></span> Return from Break (Test Reset)
+                    <button class="qp-chip" data-prompt="Just write the complete python code to reverse a linked list, don't explain anything.">
+                        <span class="chip-dot dot-red"></span> Demand Code (Test REDIRECT)
                     </button>
                 </div>
             </div>
 
             <!-- Input Box Area -->
-            <div class="input-card">
-                <div class="input-wrapper">
-                    <textarea id="messageInput" placeholder="Ask a question, propose an approach, or try demanding code..." rows="1"></textarea>
-                    <button id="sendBtn" class="btn btn-primary" title="Send message (Enter)">
+            <div class="chat-input-area">
+                <div class="input-container">
+                    <textarea 
+                        id="messageInput" 
+                        placeholder="Ask a DSA doubt, explain your thought process, or request step-by-step guidance..." 
+                        rows="1"
+                    ></textarea>
+                    <button id="sendBtn" class="btn btn-send" title="Send message (Enter)">
                         <span>Send</span>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                             <line x1="22" y1="2" x2="11" y2="13"></line>
                             <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
                         </svg>
                     </button>
                 </div>
-                <div class="input-footer">
-                    <span class="footer-hint">Press <strong>Enter</strong> to send &bull; <strong>Shift + Enter</strong> for new line</span>
-                    <span class="llm-indicator" id="llmIndicator">Provider: Ollama (qwen2.5:7b)</span>
-                </div>
-            </div>
-        </section>
-
-        <!-- Right Section: Real-Time ML Diagnostics HUD -->
-        <aside class="diagnostics-panel">
-            <div class="panel-header">
-                <div class="panel-title-group">
-                    <h3>Live ML Diagnostics</h3>
-                    <span class="pulse-indicator" title="Connected to PyTorch Policy & DeBERTa">LIVE</span>
-                </div>
-                <span class="session-counter" id="sessionCounter">Turn 0 &bull; Struggle: 0</span>
-            </div>
-
-            <!-- Active Intervention Card -->
-            <div class="hud-card action-card">
-                <div class="hud-card-header">
-                    <span class="hud-label">Current Pedagogical Action</span>
-                    <span class="hud-sub" id="actionMethod">Policy Mode</span>
-                </div>
-                <div class="action-display" id="actionDisplay">
-                    <div class="action-icon" id="actionIcon">⚡</div>
-                    <div class="action-text-group">
-                        <h4 class="action-name" id="actionName">AWAITING INPUT</h4>
-                        <p class="action-desc" id="actionDesc">Send a student prompt to observe RL intervention selection.</p>
-                    </div>
+                <div class="input-subtext">
+                    <span>Press <strong>Enter</strong> to send &bull; <strong>Shift + Enter</strong> for a new line</span>
+                    <span class="subtext-hint">Independent thinking is encouraged &bull; Anti-offloading policy active</span>
                 </div>
             </div>
 
-            <!-- Cognitive Offloading Metrics -->
-            <div class="hud-card metrics-card">
-                <span class="hud-label">Cognitive State Analysis</span>
-                
-                <!-- Extraction Score Gauge -->
-                <div class="metric-row">
-                    <div class="metric-info">
-                        <span class="metric-name">Extraction Probability P(Shortcut)</span>
-                        <span class="metric-val" id="extractionVal">0.0%</span>
+        </main>
+
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- RENAME CONVERSATION MODAL                                    -->
+    <!-- ============================================================ -->
+    <div class="modal-backdrop" id="renameModal" style="display: none;">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>Rename Conversation</h3>
+                <button class="modal-close" id="closeRenameModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="text" id="renameInput" class="text-input" placeholder="Enter conversation title...">
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" id="cancelRenameBtn">Cancel</button>
+                <button class="btn btn-primary" id="saveRenameBtn">Save Title</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- CONFIDENCE RATING MODAL (TEACHER REQUIREMENT 3)               -->
+    <!-- ============================================================ -->
+    <div class="modal-backdrop" id="confidenceModal" style="display: none;">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>Rate Your Concept Confidence</h3>
+                <button class="modal-close" id="closeConfidenceModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="modalConceptName">How confident do you feel with this concept?</p>
+                <div class="rating-scale">
+                    <input type="range" id="confidenceSlider" min="1" max="10" value="7" step="1">
+                    <div class="rating-value-display">
+                        <span class="rating-big-num" id="confidenceNum">7</span>
+                        <span class="rating-label-desc" id="confidenceLabel">Comfortable (can explain basics)</span>
                     </div>
-                    <div class="progress-bar-bg">
-                        <div class="progress-bar-fill fill-extraction" id="extractionBar" style="width: 0%;"></div>
+                </div>
+                <div class="scale-labels">
+                    <span>1: Completely Lost</span>
+                    <span>5: Need Guidance</span>
+                    <span>10: Full Mastery</span>
+                </div>
+                <textarea id="confidenceNotes" placeholder="Optional notes on what clicked or what is still confusing..." rows="2"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" id="cancelConfidenceBtn">Cancel</button>
+                <button class="btn btn-primary" id="saveConfidenceBtn">Save Mastery State</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- INSTRUCTOR TELEMETRY MODAL (For Grading / Evaluation)       -->
+    <!-- ============================================================ -->
+    <div class="modal-backdrop" id="telemetryModal" style="display: none;">
+        <div class="modal-card modal-large">
+            <div class="modal-header">
+                <div>
+                    <h3>Server RL Policy & DeBERTa Telemetry</h3>
+                    <p class="modal-sub">Live telemetry logged to server console per teacher specification</p>
+                </div>
+                <button class="modal-close" id="closeTelemetryModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="telemetry-grid">
+                    <div class="t-card">
+                        <span class="t-label">Extraction Probability (Offloading)</span>
+                        <div class="t-val" id="tExtractionVal">--</div>
+                        <div class="t-bar-bg"><div class="t-bar-fill fill-red" id="tExtractionBar"></div></div>
+                        <span class="t-sub">DeBERTa-v3 detection score (0 to 1)</span>
                     </div>
-                    <div class="metric-legend">
-                        <span>Learning Mode (&lt;30%)</span>
-                        <span class="legend-target">Critical Barrier (&gt;70%)</span>
+                    <div class="t-card">
+                        <span class="t-label">Engagement & Reasoning Effort</span>
+                        <div class="t-val" id="tEngagementVal">--</div>
+                        <div class="t-bar-bg"><div class="t-bar-fill fill-green" id="tEngagementBar"></div></div>
+                        <span class="t-sub">Calculated student effort & questions signal</span>
+                    </div>
+                    <div class="t-card">
+                        <span class="t-label">Last RL Intervention Action</span>
+                        <div class="t-val-action" id="tActionVal">None</div>
+                        <span class="t-sub" id="tActionDesc">Action determined by PyTorch Q-Network</span>
                     </div>
                 </div>
 
-                <!-- Engagement Score Gauge -->
-                <div class="metric-row">
-                    <div class="metric-info">
-                        <span class="metric-name">Active Engagement Score</span>
-                        <span class="metric-val" id="engagementVal">0.0%</span>
-                    </div>
-                    <div class="progress-bar-bg">
-                        <div class="progress-bar-fill fill-engagement" id="engagementBar" style="width: 0%;"></div>
+                <div class="q-values-table">
+                    <h4>Q-Values Breakdown (Action Selection Network)</h4>
+                    <div class="q-row-grid">
+                        <div class="q-box" id="qBox0">
+                            <span class="q-name">REDIRECT (0)</span>
+                            <span class="q-num" id="qNum0">0.000</span>
+                        </div>
+                        <div class="q-box" id="qBox1">
+                            <span class="q-name">SCAFFOLD (1)</span>
+                            <span class="q-num" id="qNum1">0.000</span>
+                        </div>
+                        <div class="q-box" id="qBox2">
+                            <span class="q-name">SOCRATIC (2)</span>
+                            <span class="q-num" id="qNum2">0.000</span>
+                        </div>
+                        <div class="q-box" id="qBox3">
+                            <span class="q-name">DELAY (3)</span>
+                            <span class="q-num" id="qNum3">0.000</span>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Struggle / Cognitive Load Index -->
-                <div class="struggle-indicator-box">
-                    <span class="metric-name">Cognitive Struggle Index:</span>
-                    <div class="struggle-dots" id="struggleDots">
-                        <span class="s-dot"></span>
-                        <span class="s-dot"></span>
-                        <span class="s-dot"></span>
-                        <span class="s-dot"></span>
-                    </div>
-                    <span class="struggle-status" id="struggleStatus">Refreshed</span>
+                <div class="terminal-log-hint">
+                    <code>💡 Tip: Detailed telemetry with student turn states is continuously printed to the server terminal.</code>
                 </div>
             </div>
+        </div>
+    </div>
 
-            <!-- Q-Values Visualizer Bar Chart -->
-            <div class="hud-card qvalues-card">
-                <div class="hud-card-header">
-                    <span class="hud-label">Q-Values Comparison (Q(s, a))</span>
-                    <span class="hud-sub">Bellman Action Values</span>
-                </div>
-                
-                <div class="q-chart" id="qChart">
-                    <!-- REDIRECT -->
-                    <div class="q-bar-group" id="qGroup-0">
-                        <div class="q-bar-labels">
-                            <span class="q-action-title">REDIRECT</span>
-                            <span class="q-val-text" id="qVal-0">0.0000</span>
-                        </div>
-                        <div class="q-track">
-                            <div class="q-fill fill-q-red" id="qFill-0" style="width: 0%;"></div>
-                        </div>
-                    </div>
-
-                    <!-- SCAFFOLD -->
-                    <div class="q-bar-group" id="qGroup-1">
-                        <div class="q-bar-labels">
-                            <span class="q-action-title">SCAFFOLD</span>
-                            <span class="q-val-text" id="qVal-1">0.0000</span>
-                        </div>
-                        <div class="q-track">
-                            <div class="q-fill fill-q-yellow" id="qFill-1" style="width: 0%;"></div>
-                        </div>
-                    </div>
-
-                    <!-- SOCRATIC -->
-                    <div class="q-bar-group" id="qGroup-2">
-                        <div class="q-bar-labels">
-                            <span class="q-action-title">SOCRATIC</span>
-                            <span class="q-val-text" id="qVal-2">0.0000</span>
-                        </div>
-                        <div class="q-track">
-                            <div class="q-fill fill-q-blue" id="qFill-2" style="width: 0%;"></div>
-                        </div>
-                    </div>
-
-                    <!-- DELAY -->
-                    <div class="q-bar-group" id="qGroup-3">
-                        <div class="q-bar-labels">
-                            <span class="q-action-title">DELAY</span>
-                            <span class="q-val-text" id="qVal-3">0.0000</span>
-                        </div>
-                        <div class="q-track">
-                            <div class="q-fill fill-q-purple" id="qFill-3" style="width: 0%;"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Architecture Info Card -->
-            <div class="hud-card arch-card">
-                <span class="hud-label">Model Pipeline Stack</span>
-                <ul class="arch-list">
-                    <li><span class="arch-k">Transformer:</span> <span class="arch-v">DeBERTa-v3-base (768d)</span></li>
-                    <li><span class="arch-k">State Vector:</span> <span class="arch-v">771 Dimensions</span></li>
-                    <li><span class="arch-k">RL Policy:</span> <span class="arch-v">Q-Learning [256, 128, 64]</span></li>
-                    <li><span class="arch-k">Generative LLM:</span> <span class="arch-v">Qwen 2.5 7B (Ollama)</span></li>
-                </ul>
-            </div>
-        </aside>
-    </main>
-
+    <!-- Client Script -->
     <script src="/static/app.js"></script>
 </body>
 </html>

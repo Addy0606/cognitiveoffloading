@@ -109,6 +109,8 @@ class AdaptiveTutor:
         student_message: str,
         conversation_history: Optional[List[Dict[str, str]]] = None,
         use_policy: bool = True,
+        topic_context: Optional[str] = None,
+        student_context: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Run the full inference pipeline on a student message.
@@ -218,6 +220,11 @@ class AdaptiveTutor:
             system_prompt = get_system_prompt(action_id)
         else:
             system_prompt = get_baseline_prompt()
+
+        if topic_context and topic_context.strip():
+            system_prompt += f"\n\nCURRENT DSA TOPIC CONTEXT:\n{topic_context.strip()}"
+        if student_context and student_context.strip():
+            system_prompt += f"\n\nSTUDENT LEARNING HISTORY & RETENTION CONTEXT:\n{student_context.strip()}"
 
         # Step 6: Call LLM (with conversation history for multi-turn context)
         is_fallback = self.llm_provider == "fallback"
@@ -336,14 +343,31 @@ class AdaptiveTutor:
                 logger.info("Guardrail override: Post-break extraction attempt → REDIRECT")
                 return 0  # REDIRECT
 
-        # --- Rule 1: High extraction (>0.7) → REDIRECT ---
+        # --- Rule 1: High extraction (>0.7) with struggle escalation ---
         if extraction_score > 0.7:
-            if policy_action != 0:
+            # Pedagogical escalation: if the student has repeatedly asked/struggled:
+            # 1-2 turns: REDIRECT (withhold code, prompt independent thinking)
+            # 3-4 turns: SCAFFOLD (provide structured steps/hints, never full code)
+            # 5+ turns:  DELAY (suggest a break to prevent burnout)
+            if self.struggle_turns >= 5:
                 logger.info(
-                    f"Guardrail override: {policy_action}→REDIRECT "
-                    f"(extraction={extraction_score:.2f} > 0.7)"
+                    f"Guardrail escalation: High struggle ({self.struggle_turns} turns) "
+                    f"with extraction → DELAY (Action 3)"
                 )
-            return 0  # REDIRECT
+                return 3  # DELAY
+            elif self.struggle_turns >= 3:
+                logger.info(
+                    f"Guardrail escalation: Persistent struggle ({self.struggle_turns} turns) "
+                    f"with extraction → SCAFFOLD (Action 1)"
+                )
+                return 1  # SCAFFOLD
+            else:
+                if policy_action != 0:
+                    logger.info(
+                        f"Guardrail override: {policy_action}→REDIRECT "
+                        f"(extraction={extraction_score:.2f} > 0.7, struggle={self.struggle_turns})"
+                    )
+                return 0  # REDIRECT
 
         # --- Rule 2: Medium extraction + zero engagement → REDIRECT ---
         if extraction_score > 0.4 and engagement_score < 0.05:
@@ -379,33 +403,40 @@ class AdaptiveTutor:
                 )
             return 1  # SCAFFOLD
 
-        # --- Rule 4: Student shows partial understanding → SOCRATIC ---
+        # --- Rule 4: Student shows conceptual inquiry or partial understanding → SOCRATIC ---
         understanding_cues = [
             "i think", "i believe", "my understanding", "i tried",
             "i wrote", "i attempted", "here's my code", "here is my code",
             "i got", "my approach", "i noticed", "i expected",
             "i'm not sure why", "im not sure why", "but why",
             "how come", "what if", "would it work if",
+            "how do you", "how does", "how to", "how would", "how can we",
+            "what is", "why does", "what does", "difference between",
+            "lets start", "let's start", "what about", "tell me about",
+            "lets learn", "let's learn", "teach me about",
         ]
-        if any(cue in msg_lower for cue in understanding_cues) and extraction_score < 0.5:
+        if any(cue in msg_lower for cue in understanding_cues) and extraction_score < 0.6:
             if policy_action != 2:
                 logger.info(
                     f"Guardrail override: {policy_action}→SOCRATIC "
-                    f"(student shows partial understanding)"
+                    f"(student shows conceptual inquiry or active reasoning)"
                 )
             return 2  # SOCRATIC
 
-        # --- Rule 5: Rushed, impatient messages → DELAY ---
-        rush_cues = [
+        # --- Rule 5: Rushed, impatient messages or cognitive fatigue → DELAY ---
+        rush_and_fatigue_cues = [
             "quick question", "real quick", "fast", "asap",
             "right now", "hurry", "urgent", "one liner",
             "in one line", "quickly", "briefly",
+            "exhausted", "brain is fried", "brain is dead", "head hurts",
+            "need a break", "so tired", "burnout", "burnt out",
+            "staring at this for hours", "spent hours", "overwhelmed",
         ]
-        if any(cue in msg_lower for cue in rush_cues) and word_count < 15:
+        if any(cue in msg_lower for cue in rush_and_fatigue_cues) and extraction_score < 0.7:
             if policy_action != 3:
                 logger.info(
                     f"Guardrail override: {policy_action}→DELAY "
-                    f"(rushed/impatient message)"
+                    f"(rushed or cognitively exhausted student)"
                 )
             return 3  # DELAY
 

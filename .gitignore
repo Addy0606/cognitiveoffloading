@@ -52,3 +52,5 @@ logs/
 # Keep results/ in git for reporting, but ignore large plots
 results/*.png
 results/*.pdf
+
+*.db
