@@ -211,6 +211,19 @@ class MemoryStore:
                 VALUES (?, ?, ?, ?, ?, ?, 'not_started', 0)
                 """, (c["id"], c["name"], c["category"], c["difficulty"], c["description"], c["example"]))
 
+            # Migrations for Active Cognitive Engagement Time (ACET) & persistent topic transitions
+            for migration in [
+                "ALTER TABLE student_knowledge ADD COLUMN total_time_seconds REAL DEFAULT 0.0",
+                "ALTER TABLE conversations ADD COLUMN active_time_seconds REAL DEFAULT 0.0",
+                "ALTER TABLE messages ADD COLUMN dwell_time_seconds REAL DEFAULT 0.0",
+                "ALTER TABLE messages ADD COLUMN message_type TEXT DEFAULT 'chat'",
+                "ALTER TABLE messages ADD COLUMN meta_json TEXT DEFAULT ''"
+            ]:
+                try:
+                    cursor.execute(migration)
+                except sqlite3.OperationalError:
+                    pass
+
             conn.commit()
 
     def reset_all_data(self) -> None:
@@ -356,7 +369,10 @@ class MemoryStore:
         action_taken: str = "",
         extraction_score: float = 0.0,
         engagement_score: float = 0.0,
-        q_values: Optional[List[float]] = None
+        q_values: Optional[List[float]] = None,
+        dwell_time_seconds: float = 0.0,
+        message_type: str = "chat",
+        meta_json: str = ""
     ) -> int:
         """Append message to conversation and update updated_at."""
         now = datetime.now().isoformat()
@@ -365,14 +381,75 @@ class MemoryStore:
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
-            INSERT INTO messages (conversation_id, role, content, action_taken, extraction_score, engagement_score, q_values, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """, (conv_id, role, content, action_taken, extraction_score, engagement_score, qv_json, now))
+            INSERT INTO messages (
+                conversation_id, role, content, action_taken, extraction_score,
+                engagement_score, q_values, dwell_time_seconds, message_type, meta_json, created_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (conv_id, role, content, action_taken, extraction_score, engagement_score, qv_json, dwell_time_seconds, message_type, meta_json, now))
             msg_id = cursor.lastrowid
 
             cursor.execute("UPDATE conversations SET updated_at = ? WHERE id = ?", (now, conv_id))
             conn.commit()
             return msg_id
+
+    def add_topic_transition(
+        self,
+        conv_id: str,
+        old_topic_id: str,
+        old_topic_name: str,
+        new_topic_name: str
+    ) -> int:
+        """Persist a topic transition interactive card event in conversation history."""
+        now = datetime.now().isoformat()
+        meta = {
+            "old_topic_id": old_topic_id,
+            "old_topic_name": old_topic_name,
+            "new_topic_name": new_topic_name,
+            "resolved": False,
+            "rating": None,
+            "label": None
+        }
+        content = f"Topic Transition: Leaving {old_topic_name} → Exploring {new_topic_name}"
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+            INSERT INTO messages (conversation_id, role, content, message_type, meta_json, created_at)
+            VALUES (?, 'topic_transition', ?, 'topic_transition', ?, ?)
+            """, (conv_id, content, json.dumps(meta), now))
+            msg_id = cursor.lastrowid
+            conn.commit()
+            return msg_id
+
+    def update_transition_feedback(
+        self,
+        concept_id: str,
+        rating: Optional[int] = None,
+        label: Optional[str] = None
+    ) -> None:
+        """Update any pending topic_transition message cards for this concept to mark them resolved."""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT id, meta_json FROM messages WHERE role = 'topic_transition'")
+            rows = cursor.fetchall()
+            for r in rows:
+                if r["meta_json"]:
+                    try:
+                        meta = json.loads(r["meta_json"])
+                        if meta.get("old_topic_id") == concept_id:
+                            meta["resolved"] = True
+                            if rating is not None:
+                                meta["rating"] = rating
+                            if label is not None:
+                                meta["label"] = label
+                            cursor.execute("""
+                            UPDATE messages 
+                            SET meta_json = ?, feedback_rating = COALESCE(?, feedback_rating), feedback_label = COALESCE(?, feedback_label)
+                            WHERE id = ?
+                            """, (json.dumps(meta), rating, label, r["id"]))
+                    except Exception:
+                        pass
+            conn.commit()
 
     def get_messages(self, conv_id: str) -> List[Dict[str, Any]]:
         """Retrieve full message history for a conversation."""
@@ -389,6 +466,13 @@ class MemoryStore:
                         d["q_values"] = json.loads(d["q_values"])
                     except Exception:
                         d["q_values"] = []
+                if d.get("meta_json"):
+                    try:
+                        d["meta"] = json.loads(d["meta_json"])
+                    except Exception:
+                        d["meta"] = {}
+                else:
+                    d["meta"] = {}
                 messages.append(d)
             return messages
 
@@ -397,7 +481,7 @@ class MemoryStore:
     # ------------------------------------------------------------------
     def save_feedback(
         self,
-        message_id: int,
+        message_id: Optional[int] = None,
         rating: Optional[int] = None,
         label: Optional[str] = None,
         concept_id: Optional[str] = None
@@ -405,14 +489,15 @@ class MemoryStore:
         """Record student confidence rating (1-10) or qualitative comprehension tag."""
         with self._get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("""
-            UPDATE messages 
-            SET feedback_rating = COALESCE(?, feedback_rating),
-                feedback_label = COALESCE(?, feedback_label)
-            WHERE id = ?
-            """, (rating, label, message_id))
+            if message_id:
+                cursor.execute("""
+                UPDATE messages 
+                SET feedback_rating = COALESCE(?, feedback_rating),
+                    feedback_label = COALESCE(?, feedback_label)
+                WHERE id = ?
+                """, (rating, label, message_id))
 
-            # If associated with a concept, update student mastery
+            # If associated with a concept, update student mastery and resolve transition cards
             if concept_id:
                 status = "mastered" if (rating and rating >= 8) else ("in_progress" if (rating and rating >= 5) else "struggling")
                 cursor.execute("""
@@ -424,19 +509,60 @@ class MemoryStore:
                 """, (rating, status, datetime.now().isoformat(), concept_id))
 
             conn.commit()
-            return {"status": "success", "message_id": message_id, "rating": rating, "label": label}
 
-    def touch_concept(self, concept_id: str) -> None:
-        """Mark a concept as active/studied with turn increments."""
+        if concept_id:
+            self.update_transition_feedback(concept_id, rating, label)
+
+        return {"status": "success", "message_id": message_id, "rating": rating, "label": label, "concept_id": concept_id}
+
+    def touch_concept(self, concept_id: str, active_seconds: float = 0.0) -> None:
+        """
+        Mark a concept as active/studied with turn increments and authentic active dwell time.
+        Bounded cognitive dwell time: between 5s and 180s per turn to eliminate tab-out inflation.
+        """
         now = datetime.now().isoformat()
+        capped_seconds = max(5.0, min(float(active_seconds or 45.0), 180.0))
         with self._get_connection() as conn:
             conn.execute("""
             UPDATE student_knowledge 
             SET last_studied_at = ?,
                 total_turns = total_turns + 1,
+                total_time_seconds = COALESCE(total_time_seconds, 0.0) + ?,
                 mastery_status = CASE WHEN mastery_status = 'not_started' THEN 'in_progress' ELSE mastery_status END
             WHERE concept_id = ?
-            """, (now, concept_id))
+            """, (now, capped_seconds, concept_id))
+            conn.commit()
+
+    def record_active_time(
+        self,
+        concept_id: Optional[str] = None,
+        conv_id: Optional[str] = None,
+        active_seconds: float = 15.0
+    ) -> None:
+        """
+        Record verified active heartbeat focus time for a concept and conversation.
+        Only called when window is visible and active (keystrokes / mouse events).
+        Heartbeat increments are bounded to 60s max per ping.
+        """
+        if not active_seconds or active_seconds <= 0:
+            return
+        inc = min(float(active_seconds), 60.0)
+        now = datetime.now().isoformat()
+        with self._get_connection() as conn:
+            if concept_id:
+                conn.execute("""
+                UPDATE student_knowledge
+                SET total_time_seconds = COALESCE(total_time_seconds, 0.0) + ?,
+                    last_studied_at = ?
+                WHERE concept_id = ?
+                """, (inc, now, concept_id))
+            if conv_id:
+                conn.execute("""
+                UPDATE conversations
+                SET active_time_seconds = COALESCE(active_time_seconds, 0.0) + ?,
+                    updated_at = ?
+                WHERE id = ?
+                """, (inc, now, conv_id))
             conn.commit()
 
     def record_concept_struggle(self, concept_id: str, struggle_inc: int = 1) -> None:
@@ -551,9 +677,12 @@ class MemoryStore:
                 cid = c["concept_id"]
                 st = topic_stats.get(cid, {})
 
-                time_secs = st.get("total_time_seconds", 0.0)
+                # Primary: Authentic recorded active cognitive engagement time (ACET)
+                time_secs = float(c.get("total_time_seconds") or 0.0)
+                if time_secs == 0:
+                    time_secs = float(st.get("total_time_seconds") or 0.0)
                 if time_secs == 0 and (c.get("total_turns") or 0) > 0:
-                    time_secs = c["total_turns"] * 120.0
+                    time_secs = float(c["total_turns"]) * 45.0
 
                 time_minutes = round(time_secs / 60.0, 1)
                 total_time_overall += time_secs

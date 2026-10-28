@@ -26,6 +26,7 @@ sys.path.insert(0, str(ROOT_DIR))
 
 from src.adaptive_tutor import AdaptiveTutor
 from src.memory_store import MemoryStore
+from src.adaptive_questions import get_adaptive_intervention
 from src.utils import setup_logging
 
 # Setup logging
@@ -119,12 +120,19 @@ class ChatRequest(BaseModel):
     conversation_id: Optional[str] = None
     topic_id: Optional[str] = None
     use_policy: bool = True
+    active_dwell_seconds: Optional[float] = 0.0
 
 class FeedbackRequest(BaseModel):
-    message_id: int
+    message_id: Optional[int] = None
     rating: Optional[int] = None
     label: Optional[str] = None
     concept_id: Optional[str] = None
+    conversation_id: Optional[str] = None
+
+class HeartbeatRequest(BaseModel):
+    conversation_id: Optional[str] = None
+    topic_id: Optional[str] = None
+    active_seconds: float = 15.0
 
 class ResolveCheckinRequest(BaseModel):
     concept_id: str
@@ -235,7 +243,44 @@ async def save_feedback(req: FeedbackRequest):
         tutor.struggle_turns = max(0, tutor.struggle_turns - 1)
         logger.info(f"Student gave high confidence feedback ({req.rating or req.label}) -> struggle_turns decayed to {tutor.struggle_turns}")
 
+    # Generate adaptive intervention question based on feedback rating
+    adaptive_intervention = None
+    if req.concept_id:
+        concept = memory.get_concept(req.concept_id)
+        c_name = concept["concept_name"] if concept else None
+        adaptive_intervention = get_adaptive_intervention(
+            concept_id=req.concept_id,
+            rating=req.rating,
+            label=req.label,
+            concept_name=c_name
+        )
+
+        # If conversation_id is provided, also insert this adaptive check as a tutor message in the conversation!
+        if req.conversation_id:
+            adaptive_msg = adaptive_intervention["prompt"]
+            adaptive_msg_id = memory.add_message(
+                conv_id=req.conversation_id,
+                role="tutor",
+                content=adaptive_msg,
+                action_taken="ADAPTIVE_CHECK"
+            )
+            adaptive_intervention["message_id"] = adaptive_msg_id
+
+    res["adaptive_intervention"] = adaptive_intervention
     return res
+
+
+# -------------------------------------------------------------
+# Active Focus Heartbeat Endpoint (ACET)
+# -------------------------------------------------------------
+@app.post("/api/heartbeat")
+async def record_heartbeat(req: HeartbeatRequest):
+    memory.record_active_time(
+        concept_id=req.topic_id,
+        conv_id=req.conversation_id,
+        active_seconds=req.active_seconds
+    )
+    return {"status": "ok", "active_seconds": req.active_seconds}
 
 
 # -------------------------------------------------------------
@@ -328,12 +373,11 @@ async def chat(req: ChatRequest):
     student_context = ""
     if topic_switched and old_topic_name:
         student_context += (
-            f"TOPIC TRANSITION NOTICE: The student was previously working on '{old_topic_name}', "
-            f"and has just asked about a new topic: '{topic_name}'. "
-            f"You MUST:\n"
-            f"1. Acknowledge the topic change smoothly.\n"
-            f"2. Briefly check if they feel satisfied/okay setting '{old_topic_name}' aside for now.\n"
-            f"3. Directly and clearly explain their new question about '{topic_name}'.\n\n"
+            f"🚨 CRITICAL TOPIC TRANSITION DIRECTIVE:\n"
+            f"The student was previously working on '{old_topic_name}', and has now switched to '{topic_name}'.\n"
+            f"In your VERY FIRST SENTENCE, you MUST acknowledge the transition and ask for their feedback on '{old_topic_name}':\n"
+            f"e.g. 'Before we shift to {topic_name}, how comfortable do you feel setting {old_topic_name} aside? Did everything click for you?'\n"
+            f"Then, proceed to address their new question about '{topic_name}'.\n\n"
         )
     if history_messages:
         last_tutor_msg = next((m for m in reversed(history_messages) if m["role"] == "tutor"), None)
@@ -390,8 +434,26 @@ async def chat(req: ChatRequest):
             topic_name=topic_name
         )
 
+        # If topic transition occurred, persist the interactive transition card in conversation history
+        transition_msg_id = None
+        if topic_switched and old_topic_id and old_topic_name:
+            transition_msg_id = memory.add_topic_transition(
+                conv_id=conv_id,
+                old_topic_id=old_topic_id,
+                old_topic_name=old_topic_name,
+                new_topic_name=topic_name
+            )
+
+        # Bounded cognitive dwell time (5s - 180s per turn)
+        dwell_secs = max(5.0, min(float(req.active_dwell_seconds or 45.0), 180.0))
+
         # Save to SQLite
-        memory.add_message(conv_id=conv_id, role="student", content=message)
+        memory.add_message(
+            conv_id=conv_id,
+            role="student",
+            content=message,
+            dwell_time_seconds=dwell_secs
+        )
         tutor_msg_id = memory.add_message(
             conv_id=conv_id,
             role="tutor",
@@ -402,10 +464,10 @@ async def chat(req: ChatRequest):
             q_values=q_vals
         )
 
-        # Update concept activity & struggle
+        # Update concept activity, authentic active time & struggle
         effective_concept_id = topic_id or (detected_concept["concept_id"] if detected_concept else None)
         if effective_concept_id:
-            memory.touch_concept(effective_concept_id)
+            memory.touch_concept(effective_concept_id, active_seconds=dwell_secs)
             if extraction_score > 0.6 or action_taken in ("REDIRECT", "DELAY"):
                 memory.record_concept_struggle(effective_concept_id, 1)
 
@@ -416,6 +478,9 @@ async def chat(req: ChatRequest):
             "title": updated_title,
             "topic_id": effective_concept_id,
             "topic_name": topic_name,
+            "topic_switched": topic_switched,
+            "old_topic_id": old_topic_id if topic_switched else None,
+            "old_topic_name": old_topic_name if topic_switched else None,
             "action_taken": action_taken,
             "action_id": action_id,
             "extraction_score": extraction_score,
@@ -449,6 +514,8 @@ async def get_status():
         "policy_loaded": policy_path.exists(),
         "database": str(memory.db_path)
     }
+
+
 
 
 if __name__ == "__main__":

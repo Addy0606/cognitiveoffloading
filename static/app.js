@@ -102,6 +102,56 @@ document.addEventListener("DOMContentLoaded", () => {
     let renamingConvId = null;
     let activeCheckinData = null;
 
+    // -------------------------------------------------------------
+    // Active Cognitive Engagement Time (ACET) Watchdog
+    // -------------------------------------------------------------
+    let turnActiveFocusSeconds = 0;
+    let lastUserActivityTimestamp = Date.now();
+    let isWindowFocused = !document.hidden;
+
+    function recordUserActivity() {
+        lastUserActivityTimestamp = Date.now();
+    }
+    window.addEventListener("mousemove", recordUserActivity, { passive: true });
+    window.addEventListener("keydown", recordUserActivity, { passive: true });
+    window.addEventListener("scroll", recordUserActivity, { passive: true });
+    window.addEventListener("click", recordUserActivity, { passive: true });
+
+    document.addEventListener("visibilitychange", () => {
+        isWindowFocused = !document.hidden;
+        if (isWindowFocused) {
+            lastUserActivityTimestamp = Date.now();
+        }
+    });
+
+    // Second-by-second focus accumulator (pauses when tab blurred or idle > 60s)
+    setInterval(() => {
+        const isRecentlyActive = (Date.now() - lastUserActivityTimestamp) <= 60000;
+        if (isWindowFocused && isRecentlyActive && !isSending) {
+            turnActiveFocusSeconds += 1;
+        }
+    }, 1000);
+
+    // Periodic Heartbeat every 25 seconds
+    setInterval(async () => {
+        const isRecentlyActive = (Date.now() - lastUserActivityTimestamp) <= 60000;
+        if (isWindowFocused && isRecentlyActive && (currentTopicId || currentConversationId)) {
+            try {
+                await fetch("/api/heartbeat", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        topic_id: currentTopicId,
+                        conversation_id: currentConversationId,
+                        active_seconds: 25.0
+                    })
+                });
+            } catch (e) {
+                // Ignore silent network drops
+            }
+        }
+    }, 25000);
+
     const CONFIDENCE_DESCRIPTIONS = {
         1: "Completely Lost — Need full concept breakdown",
         2: "Very Confused — Don't understand the core mechanism",
@@ -230,6 +280,16 @@ document.addEventListener("DOMContentLoaded", () => {
                         appendStudentMessage(m.content);
                     } else if (m.role === "tutor") {
                         appendTutorMessage(m.content, m.id, m.feedback_rating, m.feedback_label);
+                    } else if (m.role === "topic_transition") {
+                        const meta = m.meta || {};
+                        appendTopicTransitionCard(
+                            meta.old_topic_id,
+                            meta.old_topic_name,
+                            meta.new_topic_name,
+                            m.id,
+                            m.feedback_rating || meta.rating,
+                            m.feedback_label || meta.label
+                        );
                     }
                 });
             }
@@ -338,11 +398,16 @@ document.addEventListener("DOMContentLoaded", () => {
         const typingId = appendTypingIndicator();
 
         try {
+            // Measure authentic active dwell seconds (clamped 5s to 180s per turn)
+            const activeDwell = Math.min(Math.max(turnActiveFocusSeconds, 5), 180);
+            turnActiveFocusSeconds = 0; // reset for next turn
+
             const payload = {
                 message: text,
                 conversation_id: currentConversationId,
                 topic_id: currentTopicId,
-                use_policy: true
+                use_policy: true,
+                active_dwell_seconds: activeDwell
             };
 
             const resp = await fetch("/api/chat", {
@@ -373,6 +438,11 @@ document.addEventListener("DOMContentLoaded", () => {
                     activeCategory.textContent = data.topic_name;
                     activeCategory.style.display = "inline-block";
                     activeTopicSub.textContent = `Concept: ${data.topic_name}`;
+                }
+
+                // If topic transition occurred, render interactive topic feedback prompt
+                if (data.topic_switched && data.old_topic_name && data.old_topic_id) {
+                    appendTopicTransitionCard(data.old_topic_id, data.old_topic_name, data.topic_name);
                 }
 
                 appendTutorMessage(data.response, data.message_id);
@@ -496,9 +566,12 @@ document.addEventListener("DOMContentLoaded", () => {
                     message_id: messageId,
                     rating: rating,
                     label: label,
-                    concept_id: conceptId
+                    concept_id: conceptId,
+                    conversation_id: currentConversationId
                 })
             });
+
+            const data = await resp.json();
 
             if (resp.ok && clickedBtn) {
                 const parent = clickedBtn.closest(".feedback-bar");
@@ -509,14 +582,109 @@ document.addEventListener("DOMContentLoaded", () => {
                 loadMastery();
 
                 if (label === "confused") {
-                    appendSystemMessage("💡 <em>Feedback noted: The tutor will adapt by breaking concepts into smaller, simpler steps.</em>");
+                    appendSystemMessage("💡 <em>Feedback noted: The tutor is diagnosing this step to clear up confusion.</em>");
                 } else if (label === "clear") {
-                    appendSystemMessage("👍 <em>Feedback noted: Concept clarity recorded! The tutor will continue advancing.</em>");
+                    appendSystemMessage("👍 <em>Feedback noted: Concept clarity recorded! The tutor will test deeper comprehension.</em>");
+                }
+
+                // If adaptive diagnostic or challenge question is returned, append it!
+                if (data.adaptive_intervention && data.adaptive_intervention.prompt) {
+                    appendTutorMessage(data.adaptive_intervention.prompt, data.adaptive_intervention.message_id);
                 }
             }
         } catch (err) {
             console.error("Failed to submit feedback:", err);
         }
+    }
+
+    function appendTopicTransitionCard(oldTopicId, oldTopicName, newTopicName, messageId = null, feedbackRating = null, feedbackLabel = null) {
+        const card = document.createElement("div");
+        card.className = "topic-transition-card";
+        if (messageId) card.dataset.msgId = messageId;
+
+        const isResolved = (feedbackRating !== null && feedbackRating !== undefined) || (feedbackLabel !== null && feedbackLabel !== undefined);
+
+        let rateBtnText = `⭐ Rate ${escapeHtml(oldTopicName)} (1-10)`;
+        let rateBtnClass = "btn-transition-feedback btn-rate-transition";
+        let clearBtnText = "👍 Mastered / Clear";
+        let clearBtnClass = "btn-transition-feedback btn-label-transition";
+        let confusedBtnText = "🤔 Still Confused";
+        let confusedBtnClass = "btn-transition-feedback btn-label-transition";
+
+        if (feedbackRating) {
+            rateBtnText = `⭐ Rated ${feedbackRating}/10`;
+            rateBtnClass += " rated";
+        }
+        if (feedbackLabel === "clear") {
+            clearBtnText = "✓ Marked Mastered";
+            clearBtnClass += " rated";
+        } else if (feedbackLabel === "confused") {
+            confusedBtnText = "✓ Noted Confusion";
+            confusedBtnClass += " rated";
+        }
+
+        card.innerHTML = `
+            <div class="transition-card-header">
+                <span class="transition-badge">🔄 Topic Transition</span>
+                <span class="transition-sub">Leaving: <strong>${escapeHtml(oldTopicName)}</strong> → Exploring: <strong>${escapeHtml(newTopicName)}</strong></span>
+            </div>
+            <div class="transition-card-body">
+                <p>${isResolved ? `Recorded feedback for <strong>${escapeHtml(oldTopicName)}</strong>:` : `Before you move forward, how confident do you feel with <strong>${escapeHtml(oldTopicName)}</strong>?`}</p>
+                <div class="transition-actions">
+                    <button class="${rateBtnClass}" ${isResolved ? "disabled" : ""}>${rateBtnText}</button>
+                    <button class="${confusedBtnClass}" data-label="confused" ${isResolved ? "disabled" : ""}>${confusedBtnText}</button>
+                    <button class="${clearBtnClass}" data-label="clear" ${isResolved ? "disabled" : ""}>${clearBtnText}</button>
+                </div>
+            </div>
+        `;
+
+        if (!isResolved) {
+            const rateBtn = card.querySelector(".btn-rate-transition");
+            if (rateBtn) {
+                rateBtn.addEventListener("click", () => {
+                    openConfidenceModal(messageId, oldTopicId);
+                });
+            }
+
+            card.querySelectorAll(".btn-label-transition").forEach(btn => {
+                btn.addEventListener("click", async () => {
+                    const label = btn.dataset.label;
+                    const rating = label === "clear" ? 9 : 3;
+                    try {
+                        const resp = await fetch("/api/feedback", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                message_id: messageId,
+                                rating: rating,
+                                label: label,
+                                concept_id: oldTopicId,
+                                conversation_id: currentConversationId
+                            })
+                        });
+                        const data = await resp.json();
+
+                        btn.classList.add("rated");
+                        btn.textContent = label === "clear" ? "✓ Marked Mastered" : "✓ Noted Confusion";
+                        card.querySelectorAll(".btn-transition-feedback").forEach(b => {
+                            if (b !== btn) b.disabled = true;
+                        });
+                        loadMastery();
+                        appendSystemMessage(`💡 <em>Recorded ${label === 'clear' ? 'mastery' : 'review needed'} for ${escapeHtml(oldTopicName)}!</em>`);
+
+                        // If adaptive question triggered, present it directly
+                        if (data.adaptive_intervention && data.adaptive_intervention.prompt) {
+                            appendTutorMessage(data.adaptive_intervention.prompt, data.adaptive_intervention.message_id);
+                        }
+                    } catch (e) {
+                        console.error("Failed transition feedback:", e);
+                    }
+                });
+            });
+        }
+
+        chatMessages.appendChild(card);
+        scrollToBottom();
     }
 
     function appendSystemMessage(htmlText) {
@@ -658,6 +826,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const val = parseInt(confidenceSlider.value);
         const notes = confidenceNotes.value.trim();
 
+        let adaptiveData = null;
+
         if (activeModalTarget.conceptId) {
             await fetch("/api/checkin/resolve", {
                 method: "POST",
@@ -668,29 +838,70 @@ document.addEventListener("DOMContentLoaded", () => {
                     notes: notes
                 })
             });
-        }
 
-        if (activeModalTarget.messageId) {
-            await fetch("/api/feedback", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    message_id: activeModalTarget.messageId,
-                    rating: val,
-                    concept_id: activeModalTarget.conceptId
-                })
-            });
+            // Also send to /api/feedback so transition card is marked resolved and adaptive questions trigger
+            try {
+                const resp = await fetch("/api/feedback", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        message_id: activeModalTarget.messageId,
+                        rating: val,
+                        concept_id: activeModalTarget.conceptId,
+                        conversation_id: currentConversationId
+                    })
+                });
+                adaptiveData = await resp.json();
+            } catch (e) {
+                console.error("Failed to submit feedback from modal:", e);
+            }
+
+            // Update transition card if visible
+            const tCard = document.querySelector(`.topic-transition-card[data-msg-id="${activeModalTarget.messageId}"]`) || document.querySelector(".topic-transition-card:not(.resolved)");
+            if (tCard) {
+                tCard.classList.add("resolved");
+                const rBtn = tCard.querySelector(".btn-rate-transition");
+                if (rBtn) {
+                    rBtn.textContent = `⭐ Rated ${val}/10`;
+                    rBtn.classList.add("rated");
+                }
+                tCard.querySelectorAll(".btn-transition-feedback").forEach(b => {
+                    if (b !== rBtn) b.disabled = true;
+                });
+            }
+        } else if (activeModalTarget.messageId) {
+            try {
+                const resp = await fetch("/api/feedback", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        message_id: activeModalTarget.messageId,
+                        rating: val,
+                        concept_id: activeModalTarget.conceptId,
+                        conversation_id: currentConversationId
+                    })
+                });
+                adaptiveData = await resp.json();
+            } catch (e) {
+                console.error("Failed feedback:", e);
+            }
 
             const row = document.querySelector(`.message-row[data-message-id="${activeModalTarget.messageId}"]`);
             if (row) {
                 const btn = row.querySelector(".feedback-rate-btn");
                 if (btn) btn.textContent = `⭐ Rated ${val}/10`;
             }
-            if (val <= 4) {
-                appendSystemMessage(`💡 <em>Rated ${val}/10: The tutor is adjusting to provide simpler scaffolding and analogies.</em>`);
-            } else if (val >= 8) {
-                appendSystemMessage(`⭐ <em>Rated ${val}/10: High confidence recorded! Ready for deeper algorithmic reasoning.</em>`);
-            }
+        }
+
+        if (val <= 4) {
+            appendSystemMessage(`💡 <em>Rated ${val}/10: The tutor is diagnosing this step to clear up confusion.</em>`);
+        } else if (val >= 8) {
+            appendSystemMessage(`⭐ <em>Rated ${val}/10: High confidence recorded! Ready for deeper algorithmic reasoning.</em>`);
+        }
+
+        // Trigger adaptive challenge / diagnostic question in chat if returned
+        if (adaptiveData && adaptiveData.adaptive_intervention && adaptiveData.adaptive_intervention.prompt) {
+            appendTutorMessage(adaptiveData.adaptive_intervention.prompt, adaptiveData.adaptive_intervention.message_id);
         }
 
         confidenceModal.style.display = "none";
