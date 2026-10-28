@@ -217,7 +217,8 @@ class MemoryStore:
                 "ALTER TABLE conversations ADD COLUMN active_time_seconds REAL DEFAULT 0.0",
                 "ALTER TABLE messages ADD COLUMN dwell_time_seconds REAL DEFAULT 0.0",
                 "ALTER TABLE messages ADD COLUMN message_type TEXT DEFAULT 'chat'",
-                "ALTER TABLE messages ADD COLUMN meta_json TEXT DEFAULT ''"
+                "ALTER TABLE messages ADD COLUMN meta_json TEXT DEFAULT ''",
+                "ALTER TABLE student_knowledge ADD COLUMN last_checked_in_at TEXT"
             ]:
                 try:
                     cursor.execute(migration)
@@ -586,9 +587,10 @@ class MemoryStore:
             SET confidence_score = ?,
                 mastery_status = ?,
                 notes = COALESCE(NULLIF(?, ''), notes),
-                last_studied_at = ?
+                last_studied_at = ?,
+                last_checked_in_at = ?
             WHERE concept_id = ?
-            """, (confidence, status, notes, now, concept_id))
+            """, (confidence, status, notes, now, now, concept_id))
             conn.commit()
 
     def get_all_concepts(self) -> List[Dict[str, Any]]:
@@ -755,6 +757,8 @@ class MemoryStore:
             SELECT * FROM student_knowledge
             WHERE last_studied_at IS NOT NULL 
               AND total_turns > 0
+              AND (mastery_status != 'mastered' AND (confidence_score IS NULL OR confidence_score < 8))
+              AND (last_checked_in_at IS NULL OR datetime(last_checked_in_at, '+12 hours') <= datetime('now'))
             """
             params = []
             if exclude_concept_id:
@@ -766,8 +770,7 @@ class MemoryStore:
                 CASE 
                     WHEN mastery_status = 'struggling' THEN 1
                     WHEN confidence_score > 0 AND confidence_score < 7 THEN 2
-                    WHEN total_turns > 0 THEN 3
-                    ELSE 4
+                    ELSE 3
                 END ASC,
                 last_studied_at DESC
             LIMIT 1

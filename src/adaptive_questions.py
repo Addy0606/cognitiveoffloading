@@ -10,6 +10,9 @@ When a student submits comprehension or confidence feedback for a concept:
 from typing import Dict, Any, Optional
 
 ADAPTIVE_QUESTION_BANK: Dict[str, Dict[str, Any]] = {
+    # -------------------------------------------------------------
+    # 1. AVL Trees & Self-Balancing
+    # -------------------------------------------------------------
     "avl_trees": {
         "concept_name": "AVL Trees & Self-Balancing",
         "low": {
@@ -20,9 +23,9 @@ ADAPTIVE_QUESTION_BANK: Dict[str, Dict[str, Any]] = {
                 "**Question:** An AVL tree node is considered unbalanced if its balance factor (`height(left) - height(right)`) is:\n\n"
                 "- **A)** Exactly 0\n"
                 "- **B)** Either -1, 0, or +1\n"
-                "- **C)** Greater than +1 or less than -1 (i.e. +2 or -2)\n"
+                "- **C)** Greater than +1 or less than -1 (e.g. +2 or -2)\n"
                 "- **D)** Any negative number\n\n"
-                "*Which option (A, B, C, or D) do you think is correct? Reply with your choice!*"
+                "*Which option (A, B, C, or D) is correct? Reply with your choice!*"
             ),
             "expected_answer": "C"
         },
@@ -30,7 +33,7 @@ ADAPTIVE_QUESTION_BANK: Dict[str, Dict[str, Any]] = {
             "tier": "Tier 2: Application & Tracing",
             "prompt": (
                 "🎯 **Progress Check (Logic Tracing)**\n\n"
-                "Great! Let's test your ability to trace an AVL rebalance operation:\n\n"
+                "Let's test your ability to trace an AVL rebalance operation:\n\n"
                 "**Scenario:** You insert nodes in the order `[30, 20, 10]` into an initially empty AVL tree.\n\n"
                 "1. After inserting `10`, which node has a balance factor of `+2`?\n"
                 "2. Is this an **LL, RR, LR, or RL** imbalance, and which single rotation restores balance?\n\n"
@@ -44,22 +47,26 @@ ADAPTIVE_QUESTION_BANK: Dict[str, Dict[str, Any]] = {
                 "🚀 **Mastery Challenge (Edge Cases & Invariants)**\n\n"
                 "Since you feel confident with AVL Trees, here is an optimization challenge:\n\n"
                 "**Question:** Why does an AVL tree guarantee $O(\\log N)$ worst-case search time while a standard BST can degrade to $O(N)$? "
-                "Specifically, what is the maximum possible height of an AVL tree with $N$ nodes in terms of the Fibonacci sequence, "
+                "Specifically, what is the maximum height bound in terms of the golden ratio / Fibonacci sequence, "
                 "and under what insertion pattern does a double rotation (LR or RL) become strictly necessary instead of a single rotation?"
             ),
             "expected_answer": "Height bounded by ~1.44 log2(N); double rotation required when the newly inserted node lies in the inner subtree."
         }
     },
-    "linked_lists": {
+
+    # -------------------------------------------------------------
+    # 2. Reverse a Linked List
+    # -------------------------------------------------------------
+    "reverse_linked_list": {
         "concept_name": "Reverse a Linked List",
         "low": {
             "tier": "Tier 1: Foundational Diagnostic MCQ",
             "prompt": (
                 "💡 **Diagnostic Check (Foundational Intuition)**\n\n"
                 "Let's make sure the pointer mechanics are crystal clear:\n\n"
-                "**Question:** When reversing a singly linked list iteratively, why do we need a temporary pointer (`curr.next`) *before* changing `curr.next = prev`?\n\n"
+                "**Question:** When reversing a singly linked list iteratively, why do we store `next_node = curr.next` *before* changing `curr.next = prev`?\n\n"
                 "- **A)** To keep track of the head of the list\n"
-                "- **B)** Because changing `curr.next` overwrites the forward link, losing the rest of the list\n"
+                "- **B)** Because changing `curr.next` breaks the forward link, losing the rest of the list\n"
                 "- **C)** To check if the list contains cycles\n"
                 "- **D)** To count the total length of the list\n\n"
                 "*Which option (A, B, C, or D) is the reason?*"
@@ -89,8 +96,190 @@ ADAPTIVE_QUESTION_BANK: Dict[str, Dict[str, Any]] = {
             "expected_answer": "Leave remaining nodes unmodified; reconnect sub-lists using pointer tracking."
         }
     },
-    "arrays_strings": {
-        "concept_name": "Arrays & Two-Pointer Technique",
+    "linked_lists": {
+        "concept_name": "Reverse a Linked List",
+        "low": {
+            "tier": "Tier 1: Foundational Diagnostic MCQ",
+            "prompt": (
+                "💡 **Diagnostic Check (Foundational Intuition)**\n\n"
+                "**Question:** When reversing a singly linked list iteratively, why do we need `next_node = curr.next` before changing `curr.next = prev`?\n\n"
+                "- **A)** To verify head node\n"
+                "- **B)** Overwriting `curr.next` cuts the link to remaining nodes\n"
+                "- **C)** To detect cycles\n"
+                "- **D)** None of the above\n\n"
+                "*Which option is correct?*"
+            ),
+            "expected_answer": "B"
+        },
+        "medium": {
+            "tier": "Tier 2: Application & Tracing",
+            "prompt": "🎯 **Progress Check (Tracing)**: Given `A -> B -> C`, trace the state of `prev` and `curr` after each iteration.",
+            "expected_answer": "prev points to C, curr is None."
+        },
+        "high": {
+            "tier": "Tier 3: Advanced Mastery Challenge",
+            "prompt": "🚀 **Mastery Challenge**: Explain recursive vs iterative linked list reversal time/space tradeoffs.",
+            "expected_answer": "Iterative is O(1) space; recursive is O(N) auxiliary call stack space."
+        }
+    },
+
+    # -------------------------------------------------------------
+    # 3. Linked List Cycle Detection
+    # -------------------------------------------------------------
+    "cycle_detection": {
+        "concept_name": "Linked List Cycle Detection",
+        "low": {
+            "tier": "Tier 1: Foundational Diagnostic MCQ",
+            "prompt": (
+                "💡 **Diagnostic Check (Foundational Intuition)**\n\n"
+                "**Question:** In Floyd's Tortoise and Hare algorithm, how many steps does `slow` and `fast` move per iteration?\n\n"
+                "- **A)** slow moves 1 step, fast moves 1 step\n"
+                "- **B)** slow moves 1 step, fast moves 2 steps\n"
+                "- **C)** slow moves 2 steps, fast moves 3 steps\n"
+                "- **D)** slow moves 0 steps, fast moves 2 steps\n\n"
+                "*Which option (A, B, C, or D) is correct?*"
+            ),
+            "expected_answer": "B"
+        },
+        "medium": {
+            "tier": "Tier 2: Application & Tracing",
+            "prompt": (
+                "🎯 **Progress Check (Logic Tracing)**\n\n"
+                "Why is Floyd's cycle detection guaranteed to run in $O(N)$ time instead of looping forever? "
+                "How does the gap (relative distance) between `fast` and `slow` change on each step inside the loop?"
+            ),
+            "expected_answer": "The distance between fast and slow decreases by exactly 1 step on every iteration modulo the loop length."
+        },
+        "high": {
+            "tier": "Tier 3: Advanced Mastery & Edge-Case Challenge",
+            "prompt": (
+                "🚀 **Mastery Challenge (Cycle Entrance Proof)**\n\n"
+                "**Question:** After `slow` and `fast` meet inside the cycle, Floyd's algorithm resets `slow` to the `head` "
+                "and moves both `slow` and `fast` 1 step at a time until they collide again. "
+                "Mathematically prove why this second collision is guaranteed to occur at the **exact entrance node** of the cycle!"
+            ),
+            "expected_answer": "Let distance to cycle start be L, distance from start to meeting point be d, cycle length be C. 2(L + d) = L + d + kC => L = kC - d."
+        }
+    },
+
+    # -------------------------------------------------------------
+    # 4. Binary Search
+    # -------------------------------------------------------------
+    "binary_search": {
+        "concept_name": "Binary Search",
+        "low": {
+            "tier": "Tier 1: Foundational Diagnostic MCQ",
+            "prompt": (
+                "💡 **Diagnostic Check (Foundational Intuition)**\n\n"
+                "**Question:** Why do experienced programmers write `mid = low + (high - low) // 2` instead of `mid = (low + high) // 2`?\n\n"
+                "- **A)** It executes faster in hardware\n"
+                "- **B)** It avoids 32-bit integer overflow when `low + high` exceeds $2^{31} - 1$\n"
+                "- **C)** It handles negative numbers differently\n"
+                "- **D)** It works on unsorted arrays\n\n"
+                "*Which option (A, B, C, or D) is the main reason?*"
+            ),
+            "expected_answer": "B"
+        },
+        "medium": {
+            "tier": "Tier 2: Application & Tracing",
+            "prompt": (
+                "🎯 **Progress Check (Logic Tracing)**\n\n"
+                "Suppose you want to find the **first (leftmost) occurrence** of target `2` in `arr = [1, 2, 2, 2, 3, 5]`.\n\n"
+                "When `arr[mid] == target`, what should you do with your pointers (`low` or `high`) so you don't stop prematurely at the middle 2?\n\n"
+                "*Give the pointer update rule in one sentence!*"
+            ),
+            "expected_answer": "Set high = mid - 1 (or high = mid) while saving ans = mid, searching the left half."
+        },
+        "high": {
+            "tier": "Tier 3: Advanced Mastery & Edge-Case Challenge",
+            "prompt": (
+                "🚀 **Mastery Challenge (Search on Answer Space)**\n\n"
+                "**Question:** In problems like *Koko Eating Bananas* or *Capacity to Ship Packages within D Days*, "
+                "how do we apply Binary Search even when the input array is completely unsorted? "
+                "What mathematical property (monotonic predicate $P(x)$) must the answer space satisfy?"
+            ),
+            "expected_answer": "The feasibility function must be monotonic (e.g. FFF...TTT); binary search finds the first True value."
+        }
+    },
+
+    # -------------------------------------------------------------
+    # 5. Binary Search Trees (BST)
+    # -------------------------------------------------------------
+    "binary_search_tree": {
+        "concept_name": "Binary Search Trees (BST)",
+        "low": {
+            "tier": "Tier 1: Foundational Diagnostic MCQ",
+            "prompt": (
+                "💡 **Diagnostic Check (Foundational Intuition)**\n\n"
+                "**Question:** What fundamental invariant must hold true for EVERY node in a valid Binary Search Tree (BST)?\n\n"
+                "- **A)** All nodes in the left subtree must be strictly less than the node, and all nodes in the right subtree must be strictly greater\n"
+                "- **B)** The left child must simply be smaller than its immediate parent; descendants don't matter\n"
+                "- **C)** The tree must always be completely balanced with equal depth\n"
+                "- **D)** Every node must have exactly 2 children\n\n"
+                "*Which option (A, B, C, or D) is the correct invariant?*"
+            ),
+            "expected_answer": "A"
+        },
+        "medium": {
+            "tier": "Tier 2: Application & Tracing",
+            "prompt": (
+                "🎯 **Progress Check (Logic Tracing)**\n\n"
+                "Given this BST:\n"
+                "```\n"
+                "       8\n"
+                "      / \\\n"
+                "     3   10\n"
+                "    / \\\n"
+                "   1   6\n"
+                "```\n"
+                "1. What is the **In-order traversal** of this tree?\n"
+                "2. If you delete node `3` (which has two children `1` and `6`), what node from the tree replaces it?"
+            ),
+            "expected_answer": "In-order: [1, 3, 6, 8, 10]. Node 3 is replaced by in-order successor 6 (or predecessor 1)."
+        },
+        "high": {
+            "tier": "Tier 3: Advanced Mastery & Edge-Case Challenge",
+            "prompt": (
+                "🚀 **Mastery Challenge (Validation Edge Cases)**\n\n"
+                "**Question:** Consider the tree: Root=10, Left=5, Right=15, and 15's Left child is 6.\n"
+                "Locally, `6 < 15` is valid, but the entire tree is NOT a valid BST. "
+                "How does the optimal $O(N)$ BST validation algorithm propagate `(min_allowed, max_allowed)` bounds down the recursion to catch this violation?"
+            ),
+            "expected_answer": "Pass (low, high) ranges down recursively; for node.left pass (low, node.val), for node.right pass (node.val, high). 6 violates 10 < val < inf."
+        }
+    },
+    "binary_trees": {
+        "concept_name": "Binary Search Trees (BST)",
+        "low": {
+            "tier": "Tier 1: Foundational Diagnostic MCQ",
+            "prompt": (
+                "💡 **Diagnostic Check (Foundational Intuition)**\n\n"
+                "**Question:** Which traversal visits nodes in ascending sorted order for a valid BST?\n\n"
+                "- **A)** Pre-order\n"
+                "- **B)** In-order (Left, Root, Right)\n"
+                "- **C)** Post-order\n"
+                "- **D)** Level-order\n\n"
+                "*Which option is correct?*"
+            ),
+            "expected_answer": "B"
+        },
+        "medium": {
+            "tier": "Tier 2: Application & Tracing",
+            "prompt": "🎯 **Progress Check**: Trace in-order traversal on a BST with nodes 5, 2, 7.",
+            "expected_answer": "[2, 5, 7]"
+        },
+        "high": {
+            "tier": "Tier 3: Advanced Mastery Challenge",
+            "prompt": "🚀 **Mastery Challenge**: Explain why degenerate BST degrades to O(N) and how balancing fixes it.",
+            "expected_answer": "Skewed BST acts like linked list; self-balancing bounds height to O(log N)."
+        }
+    },
+
+    # -------------------------------------------------------------
+    # 6. Two Pointers Technique
+    # -------------------------------------------------------------
+    "two_pointers": {
+        "concept_name": "Two Pointers Technique",
         "low": {
             "tier": "Tier 1: Foundational Diagnostic MCQ",
             "prompt": (
@@ -108,7 +297,7 @@ ADAPTIVE_QUESTION_BANK: Dict[str, Dict[str, Any]] = {
             "tier": "Tier 2: Application & Tracing",
             "prompt": (
                 "🎯 **Progress Check (Logic Tracing)**\n\n"
-                "Suppose you have `arr = [1, 2, 4, 7, 11, 15]` and `target = 15`.\n"
+                "Suppose you have sorted `arr = [1, 2, 4, 7, 11, 15]` and `target = 15`.\n"
                 "Trace each step: what are `left`, `right`, the current sum, and which pointer moves at each turn?"
             ),
             "expected_answer": "left=0, right=5 (sum 16 > 15 -> right=4); left=0, right=4 (sum 12 < 15 -> left=1); left=1, right=4 (sum 13 < 15 -> left=2); left=2, right=4 (4+11=15 -> found!)."
@@ -122,18 +311,40 @@ ADAPTIVE_QUESTION_BANK: Dict[str, Dict[str, Any]] = {
             "expected_answer": "Sort first, skip identical adjacent elements using while loops on left and right."
         }
     },
-    "binary_trees": {
-        "concept_name": "Binary Trees & BSTs",
+    "arrays_strings": {
+        "concept_name": "Two Pointers Technique",
+        "low": {
+            "tier": "Tier 1: Foundational Diagnostic MCQ",
+            "prompt": "💡 **Diagnostic Check**: What pointer move increases the sum in a sorted two-pointer search? (Increment left).",
+            "expected_answer": "Increment left"
+        },
+        "medium": {
+            "tier": "Tier 2: Application & Tracing",
+            "prompt": "🎯 **Progress Check**: Trace Two Sum II on [2, 7, 11, 15] with target 9.",
+            "expected_answer": "left=0, right=1 (2+7=9 -> target found immediately)."
+        },
+        "high": {
+            "tier": "Tier 3: Advanced Mastery Challenge",
+            "prompt": "🚀 **Mastery Challenge**: Explain Trapping Rain Water using two pointers in O(1) auxiliary space.",
+            "expected_answer": "Maintain left_max and right_max, advance pointer with smaller max."
+        }
+    },
+
+    # -------------------------------------------------------------
+    # 7. 0/1 Knapsack Problem
+    # -------------------------------------------------------------
+    "knapsack_dp": {
+        "concept_name": "0/1 Knapsack Problem",
         "low": {
             "tier": "Tier 1: Foundational Diagnostic MCQ",
             "prompt": (
                 "💡 **Diagnostic Check (Foundational Intuition)**\n\n"
-                "**Question:** Which tree traversal visits nodes in non-decreasing sorted order for a valid Binary Search Tree (BST)?\n\n"
-                "- **A)** Pre-order (Root, Left, Right)\n"
-                "- **B)** In-order (Left, Root, Right)\n"
-                "- **C)** Post-order (Left, Right, Root)\n"
-                "- **D)** Level-order (BFS)\n\n"
-                "*Which option (A, B, C, or D) produces sorted output?*"
+                "**Question:** In the 0/1 Knapsack problem, why does a greedy approach (taking highest value-to-weight ratio first) FAIL to give the optimal answer?\n\n"
+                "- **A)** Because weights are negative\n"
+                "- **B)** Because items cannot be divided (fractional); taking an item may leave unused capacity that prevents fitting a better combination\n"
+                "- **C)** Because greedy algorithms always take $O(2^N)$ time\n"
+                "- **D)** Greedy actually always works for 0/1 Knapsack\n\n"
+                "*Which option (A, B, C, or D) is correct?*"
             ),
             "expected_answer": "B"
         },
@@ -141,74 +352,77 @@ ADAPTIVE_QUESTION_BANK: Dict[str, Dict[str, Any]] = {
             "tier": "Tier 2: Application & Tracing",
             "prompt": (
                 "🎯 **Progress Check (Logic Tracing)**\n\n"
-                "Given this BST:\n"
-                "```\n"
-                "       8\n"
-                "      / \\\n"
-                "     3   10\n"
-                "    / \\\n"
-                "   1   6\n"
-                "```\n"
-                "Write down the exact sequence of nodes printed by an **In-order Traversal**."
+                "Suppose capacity $W = 4$, and you have an item with `weight = 2`, `value = 10`.\n"
+                "If `dp[w]` is the maximum value for capacity $w$:\n"
+                "What is the recurrence relation to update `dp[w]` using this item?"
             ),
-            "expected_answer": "[1, 3, 6, 8, 10]"
+            "expected_answer": "dp[w] = max(dp[w], value + dp[w - weight])"
         },
         "high": {
             "tier": "Tier 3: Advanced Mastery & Edge-Case Challenge",
             "prompt": (
-                "🚀 **Mastery Challenge (Edge Cases & Invariants)**\n\n"
-                "**Question:** When validating whether a binary tree is a valid BST, why is checking `node.left.val < node.val < node.right.val` locally insufficient? "
-                "How do you formulate the recursive invariant with `(-infinity, +infinity)` bounds?"
+                "🚀 **Mastery Challenge (Space Optimization)**\n\n"
+                "**Question:** When optimizing the 0/1 Knapsack from a 2D table `dp[N+1][W+1]` to a 1D array `dp[W+1]`, "
+                "why MUST the inner capacity loop iterate **backwards** (`for w in range(W, weight - 1, -1)`)? "
+                "What bug happens if you iterate forwards?"
             ),
-            "expected_answer": "Subtree nodes must satisfy global ancestor bounds, not just direct parent."
+            "expected_answer": "Iterating forwards allows the same item to be reused multiple times (Unbounded Knapsack bug); backwards iteration ensures each item is used at most once."
         }
     },
-    "dynamic_programming": {
-        "concept_name": "Dynamic Programming & Memoization",
+
+    # -------------------------------------------------------------
+    # 8. Coin Change (Min Coins)
+    # -------------------------------------------------------------
+    "coin_change": {
+        "concept_name": "Coin Change (Min Coins)",
         "low": {
             "tier": "Tier 1: Foundational Diagnostic MCQ",
             "prompt": (
                 "💡 **Diagnostic Check (Foundational Intuition)**\n\n"
-                "**Question:** What are the two essential properties a problem must possess for Dynamic Programming to apply?\n\n"
-                "- **A)** Sorted inputs and Two Pointers\n"
-                "- **B)** Overlapping Subproblems and Optimal Substructure\n"
-                "- **C)** Linear Time and Constant Space\n"
-                "- **D)** Greediness and Binary Choices\n\n"
-                "*Which option (A, B, C, or D) describes DP?*"
+                "**Question:** In the Coin Change problem (finding minimum coins to make amount $A$), what is the base case `dp[0]`?\n\n"
+                "- **A)** `dp[0] = 0` (0 coins needed to make amount 0)\n"
+                "- **B)** `dp[0] = infinity`\n"
+                "- **C)** `dp[0] = -1`\n"
+                "- **D)** `dp[0] = 1`\n\n"
+                "*Which option (A, B, C, or D) is the correct base case?*"
             ),
-            "expected_answer": "B"
+            "expected_answer": "A"
         },
         "medium": {
             "tier": "Tier 2: Application & Tracing",
             "prompt": (
                 "🎯 **Progress Check (Logic Tracing)**\n\n"
-                "In the 0/1 Knapsack problem with weights `[2, 3]`, values `[3, 4]`, and capacity `W = 5`:\n"
-                "What is the state transition recurrence for `dp[i][w]`, and what value is stored in `dp[2][5]`?"
+                "Given coins `[1, 2, 5]` and target `amount = 5`.\n"
+                "Calculate `dp[1]`, `dp[2]`, `dp[3]`, `dp[4]`, and `dp[5]`."
             ),
-            "expected_answer": "dp[i][w] = max(dp[i-1][w], val[i] + dp[i-1][w-wt[i]]); dp[2][5] = 7"
+            "expected_answer": "dp[1]=1, dp[2]=1, dp[3]=2, dp[4]=2, dp[5]=1"
         },
         "high": {
             "tier": "Tier 3: Advanced Mastery & Edge-Case Challenge",
             "prompt": (
-                "🚀 **Mastery Challenge (Edge Cases & Invariants)**\n\n"
-                "**Question:** In the Coin Change problem (fewest coins to make amount $V$), explain how you can optimize the standard 2D DP table into a 1D array. "
-                "Why must the 1D array iterate forwards for unbounded knapsack (unlimited coins) vs backwards for 0/1 knapsack (each item once)?"
+                "🚀 **Mastery Challenge (Unbounded vs 0/1)**\n\n"
+                "**Question:** Contrast Coin Change (minimum coins, unlimited supply) with 0/1 Knapsack. "
+                "In 1D DP array, which one iterates forward and which iterates backward? Why?"
             ),
-            "expected_answer": "Forward iteration re-uses newly computed values from current item; backward iteration ensures items only used once."
+            "expected_answer": "Coin change iterates forward because each coin can be used multiple times; 0/1 knapsack iterates backward to prevent reuse."
         }
     },
-    "graph_algorithms": {
-        "concept_name": "Graph BFS & DFS",
+
+    # -------------------------------------------------------------
+    # 9. Graph BFS (Shortest Path)
+    # -------------------------------------------------------------
+    "graph_bfs": {
+        "concept_name": "Shortest Path (Graph BFS)",
         "low": {
             "tier": "Tier 1: Foundational Diagnostic MCQ",
             "prompt": (
                 "💡 **Diagnostic Check (Foundational Intuition)**\n\n"
-                "**Question:** Which data structure is fundamentally used to implement Breadth-First Search (BFS)?\n\n"
+                "**Question:** Which data structure is used to implement Breadth-First Search (BFS)?\n\n"
                 "- **A)** Stack (LIFO)\n"
                 "- **B)** Queue (FIFO)\n"
-                "- **C)** Priority Queue / Min-Heap\n"
-                "- **D)** Disjoint Set Union (DSU)\n\n"
-                "*Which option (A, B, C, or D) guarantees level-by-level traversal?*"
+                "- **C)** Priority Queue (Min-Heap)\n"
+                "- **D)** Binary Search Tree\n\n"
+                "*Which option (A, B, C, or D) explores level by level?*"
             ),
             "expected_answer": "B"
         },
@@ -216,20 +430,99 @@ ADAPTIVE_QUESTION_BANK: Dict[str, Dict[str, Any]] = {
             "tier": "Tier 2: Application & Tracing",
             "prompt": (
                 "🎯 **Progress Check (Logic Tracing)**\n\n"
-                "Why does BFS find the **shortest path** in an unweighted graph, but fails to guarantee the shortest path in a graph with positive weighted edges? What algorithm should be used instead?"
+                "Why must a node be marked as `visited` at the moment it is **pushed into the queue**, "
+                "rather than when it is popped from the queue?"
             ),
-            "expected_answer": "BFS expands uniformly by edge count; for positive weighted edges, Dijkstra's algorithm with a priority queue is required."
+            "expected_answer": "To prevent duplicate additions of the same node by multiple neighbors, which would cause exponential queue growth."
         },
         "high": {
             "tier": "Tier 3: Advanced Mastery & Edge-Case Challenge",
             "prompt": (
-                "🚀 **Mastery Challenge (Edge Cases & Invariants)**\n\n"
-                "**Question:** How does Tarjan's or Kosaraju's algorithm identify Strongly Connected Components (SCCs) in a directed graph in $O(V + E)$? Explain the role of discovery times (`tin`) and low-link values (`low`)."
+                "🚀 **Mastery Challenge (Multi-Source BFS)**\n\n"
+                "**Question:** In problems like *Rotting Oranges* (LeetCode 994) or finding the distance of the nearest 0 in a binary matrix, "
+                "how does Multi-Source BFS guarantee optimal $O(R \\times C)$ time without running separate BFS passes for each source?"
             ),
-            "expected_answer": "Low-link value identifies the highest ancestor reachable; when low[u] == tin[u], u is the root of an SCC."
+            "expected_answer": "Push all initial sources into the queue simultaneously at time t=0; the single BFS wavefront propagates uniformly."
+        }
+    },
+
+    # -------------------------------------------------------------
+    # 10. Dijkstra's Shortest Path
+    # -------------------------------------------------------------
+    "dijkstra": {
+        "concept_name": "Dijkstra's Shortest Path",
+        "low": {
+            "tier": "Tier 1: Foundational Diagnostic MCQ",
+            "prompt": (
+                "💡 **Diagnostic Check (Foundational Intuition)**\n\n"
+                "**Question:** Under what graph condition does Dijkstra's algorithm FAIL to find the correct shortest path?\n\n"
+                "- **A)** Graphs with cycles\n"
+                "- **B)** Graphs with directed edges\n"
+                "- **C)** Graphs with negative edge weights\n"
+                "- **D)** Graphs with more than 1000 nodes\n\n"
+                "*Which option (A, B, C, or D) breaks Dijkstra's greedy invariant?*"
+            ),
+            "expected_answer": "C"
+        },
+        "medium": {
+            "tier": "Tier 2: Application & Tracing",
+            "prompt": (
+                "🎯 **Progress Check (Logic Tracing)**\n\n"
+                "What is the relaxation step in Dijkstra's algorithm when examining edge `(u, v)` with weight `w`? "
+                "Under what condition do you update `dist[v]` and push `(dist[v], v)` into the min-heap?"
+            ),
+            "expected_answer": "If dist[u] + w < dist[v], set dist[v] = dist[u] + w and push (dist[v], v) to heap."
+        },
+        "high": {
+            "tier": "Tier 3: Advanced Mastery & Edge-Case Challenge",
+            "prompt": (
+                "🚀 **Mastery Challenge (Complexity & Alternatives)**\n\n"
+                "**Question:** What is the precise time complexity of Dijkstra using a binary min-heap: $O((V + E) \\log V)$ or $O(E \\log V)$? "
+                "If the graph contains negative edges but NO negative cycles, which algorithm must you use instead, and what is its complexity?"
+            ),
+            "expected_answer": "O((V + E) log V); use Bellman-Ford algorithm with O(V * E) complexity."
+        }
+    },
+
+    # -------------------------------------------------------------
+    # 11. Valid Parentheses (Stack)
+    # -------------------------------------------------------------
+    "valid_parentheses": {
+        "concept_name": "Valid Parentheses (Stack)",
+        "low": {
+            "tier": "Tier 1: Foundational Diagnostic MCQ",
+            "prompt": (
+                "💡 **Diagnostic Check (Foundational Intuition)**\n\n"
+                "**Question:** In the Valid Parentheses problem, when encountering a closing bracket (e.g. `')'`), what two checks must pass for the string to remain valid?\n\n"
+                "- **A)** The stack must not be empty, AND the top element must be the matching opening bracket (`'('`)\n"
+                "- **B)** The stack must be empty\n"
+                "- **C)** The next character must also be a closing bracket\n"
+                "- **D)** The string length must be odd\n\n"
+                "*Which option (A, B, C, or D) is correct?*"
+            ),
+            "expected_answer": "A"
+        },
+        "medium": {
+            "tier": "Tier 2: Application & Tracing",
+            "prompt": (
+                "🎯 **Progress Check (Logic Tracing)**\n\n"
+                "Trace the stack contents character-by-character for `s = \"{[()]}\"`.\n"
+                "At which step is the stack at its maximum depth, and what are its contents?"
+            ),
+            "expected_answer": "Max depth is 3 after pushing '(', contents: ['{', '[', '(']."
+        },
+        "high": {
+            "tier": "Tier 3: Advanced Mastery & Edge-Case Challenge",
+            "prompt": (
+                "🚀 **Mastery Challenge (Constant Space Solution)**\n\n"
+                "**Question:** For the *Longest Valid Parentheses* problem (LeetCode 32), a stack solution uses $O(N)$ space. "
+                "How can you solve it in $O(1)$ auxiliary space using two linear passes (left-to-right and right-to-left) with `left` and `right` counter variables?"
+            ),
+            "expected_answer": "Traverse left-to-right: increment left for '(', right for ')'. If right > left, reset. If left == right, update max. Repeat right-to-left to catch unbalanced '('."
         }
     }
 }
+
 
 def get_adaptive_intervention(
     concept_id: str,

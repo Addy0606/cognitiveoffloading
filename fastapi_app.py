@@ -10,6 +10,7 @@ OR
 
 import os
 import sys
+import json
 import logging
 from pathlib import Path
 from typing import Optional, List, Dict, Any
@@ -444,6 +445,18 @@ async def chat(req: ChatRequest):
                 new_topic_name=topic_name
             )
 
+        # Determine if inline comprehension feedback should be shown on this message turn:
+        # Show ONLY on:
+        # 1. Student expresses resolution ("thanks", "got it", "i get it", "understood", "makes sense", "solved")
+        # 2. Recovery turn after low confidence / confusion (struggle_turns > 0)
+        # 3. Topic practice milestone (every 4 student turns)
+        msg_lower = message.lower()
+        is_resolution = any(w in msg_lower for w in ["thank", "got it", "i get it", "makes sense", "understood", "i understand", "now i get", "clear now", "solved", "working now"])
+        is_post_struggle = (tutor.struggle_turns > 0 or getattr(tutor, "is_post_break", False))
+        topic_turn_count = len([m for m in history_messages if m.get("role") == "student"])
+        is_milestone = (topic_turn_count > 0 and topic_turn_count % 4 == 0)
+        should_show_feedback = bool(is_resolution or is_post_struggle or is_milestone)
+
         # Bounded cognitive dwell time (5s - 180s per turn)
         dwell_secs = max(5.0, min(float(req.active_dwell_seconds or 45.0), 180.0))
 
@@ -461,7 +474,8 @@ async def chat(req: ChatRequest):
             action_taken=action_taken,
             extraction_score=extraction_score,
             engagement_score=engagement_score,
-            q_values=q_vals
+            q_values=q_vals,
+            meta_json=json.dumps({"show_feedback": should_show_feedback})
         )
 
         # Update concept activity, authentic active time & struggle
@@ -481,6 +495,8 @@ async def chat(req: ChatRequest):
             "topic_switched": topic_switched,
             "old_topic_id": old_topic_id if topic_switched else None,
             "old_topic_name": old_topic_name if topic_switched else None,
+            "transition_msg_id": transition_msg_id,
+            "show_feedback": should_show_feedback,
             "action_taken": action_taken,
             "action_id": action_id,
             "extraction_score": extraction_score,

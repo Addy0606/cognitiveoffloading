@@ -188,9 +188,11 @@ document.addEventListener("DOMContentLoaded", () => {
             chatCountBadge.textContent = convs.length;
             renderConversationsList(convs);
 
-            // Auto-select latest conversation if none selected and convs exist
-            if (!currentConversationId && convs.length > 0) {
-                loadConversationMessages(convs[0].id);
+            // Auto-select saved conversation or latest
+            const savedConvId = localStorage.getItem("dsa_active_conv_id");
+            const targetConv = convs.find(c => c.id === savedConvId) || convs[0];
+            if (!currentConversationId && targetConv) {
+                loadConversationMessages(targetConv.id);
             } else if (convs.length === 0) {
                 renderWelcomeCard();
             }
@@ -248,6 +250,8 @@ document.addEventListener("DOMContentLoaded", () => {
             const data = await resp.json();
 
             currentConversationId = convId;
+            localStorage.setItem("dsa_active_conv_id", convId);
+
             const conv = data.conversation;
             const topic = data.topic;
             const messages = data.messages || [];
@@ -275,20 +279,25 @@ document.addEventListener("DOMContentLoaded", () => {
             if (messages.length === 0) {
                 renderWelcomeCard();
             } else {
-                messages.forEach(m => {
+                messages.forEach((m, idx) => {
                     if (m.role === "student") {
                         appendStudentMessage(m.content);
                     } else if (m.role === "tutor") {
-                        appendTutorMessage(m.content, m.id, m.feedback_rating, m.feedback_label);
+                        const meta = m.meta || {};
+                        const isAdaptive = Boolean(m.action_taken === "ADAPTIVE_CHECK" || meta.is_adaptive);
+                        // Show feedback bar if marked, if already rated, or if this is the latest tutor message in the conversation
+                        const isLatestTutor = (idx === messages.length - 1 || (idx === messages.length - 2 && messages[messages.length - 1].role === "student"));
+                        const showFeedback = Boolean(meta.show_feedback || isLatestTutor || (m.feedback_rating !== null && m.feedback_rating !== undefined) || (m.feedback_label !== null && m.feedback_label !== undefined));
+                        appendTutorMessage(m.content, m.id, m.feedback_rating, m.feedback_label, showFeedback, isAdaptive);
                     } else if (m.role === "topic_transition") {
                         const meta = m.meta || {};
                         appendTopicTransitionCard(
-                            meta.old_topic_id,
-                            meta.old_topic_name,
-                            meta.new_topic_name,
+                            meta.old_topic_id || "concept",
+                            meta.old_topic_name || "Previous Topic",
+                            meta.new_topic_name || "Next Topic",
                             m.id,
-                            m.feedback_rating || meta.rating,
-                            m.feedback_label || meta.label
+                            (m.feedback_rating !== null && m.feedback_rating !== undefined) ? m.feedback_rating : meta.rating,
+                            (m.feedback_label !== null && m.feedback_label !== undefined) ? m.feedback_label : meta.label
                         );
                     }
                 });
@@ -302,6 +311,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function startNewChat() {
         currentConversationId = null;
+        localStorage.removeItem("dsa_active_conv_id");
         currentTopicId = null;
         activeTopicTitle.textContent = "New Chat";
         activeCategory.style.display = "none";
@@ -442,10 +452,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 // If topic transition occurred, render interactive topic feedback prompt
                 if (data.topic_switched && data.old_topic_name && data.old_topic_id) {
-                    appendTopicTransitionCard(data.old_topic_id, data.old_topic_name, data.topic_name);
+                    appendTopicTransitionCard(data.old_topic_id, data.old_topic_name, data.topic_name, data.transition_msg_id);
                 }
 
-                appendTutorMessage(data.response, data.message_id);
+                appendTutorMessage(data.response, data.message_id, null, null, Boolean(data.show_feedback));
                 updateTelemetryModal(data);
                 loadConversations();
                 loadMastery();
@@ -500,20 +510,21 @@ document.addEventListener("DOMContentLoaded", () => {
         scrollToBottom();
     }
 
-    function appendTutorMessage(text, messageId = null, feedbackRating = null, feedbackLabel = null) {
+    function appendTutorMessage(text, messageId = null, feedbackRating = null, feedbackLabel = null, showFeedback = false, isAdaptive = false) {
         const row = document.createElement("div");
         row.className = "message-row tutor-row";
         row.dataset.messageId = messageId || "";
 
         let feedbackHtml = "";
-        if (messageId) {
+        const shouldShow = showFeedback || (feedbackRating !== null && feedbackRating !== undefined) || (feedbackLabel !== null && feedbackLabel !== undefined);
+        if (messageId && shouldShow) {
             const clearActive = feedbackLabel === "clear" ? "active" : "";
             const confusedActive = feedbackLabel === "confused" ? "active" : "";
             const rateText = feedbackRating ? `⭐ Rated ${feedbackRating}/10` : "⭐ Rate Confidence (1-10)";
 
             feedbackHtml = `
                 <div class="feedback-bar" data-msg-id="${messageId}">
-                    <span class="feedback-label">Comprehension:</span>
+                    <span class="feedback-label">Comprehension Check:</span>
                     <button class="feedback-btn ${clearActive}" data-label="clear" title="I understand this step">
                         👍 Clear
                     </button>
@@ -527,11 +538,15 @@ document.addEventListener("DOMContentLoaded", () => {
             `;
         }
 
+        const adaptiveBadgeHtml = isAdaptive ? `<span class="adaptive-badge">🎯 Adaptive Question</span>` : "";
+        const bubbleClass = isAdaptive ? "message-bubble tutor-bubble adaptive-intervention" : "message-bubble tutor-bubble";
+
         row.innerHTML = `
             <div class="avatar tutor-avatar">🎓</div>
-            <div class="message-bubble tutor-bubble">
+            <div class="${bubbleClass}">
                 <div class="tutor-bubble-header">
                     <span>DSA Mentor</span>
+                    ${adaptiveBadgeHtml}
                 </div>
                 <div class="message-text">${formatMessageContent(text)}</div>
                 ${feedbackHtml}
@@ -554,7 +569,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         chatMessages.appendChild(row);
-        scrollToBottom();
+        scrollToBottom(isAdaptive);
     }
 
     async function submitFeedback(messageId, rating, label, conceptId, clickedBtn = null) {
@@ -589,7 +604,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 // If adaptive diagnostic or challenge question is returned, append it!
                 if (data.adaptive_intervention && data.adaptive_intervention.prompt) {
-                    appendTutorMessage(data.adaptive_intervention.prompt, data.adaptive_intervention.message_id);
+                    appendTutorMessage(data.adaptive_intervention.prompt, data.adaptive_intervention.message_id, null, null, false, true);
+                    scrollToBottom(true);
                 }
             }
         } catch (err) {
@@ -674,7 +690,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
                         // If adaptive question triggered, present it directly
                         if (data.adaptive_intervention && data.adaptive_intervention.prompt) {
-                            appendTutorMessage(data.adaptive_intervention.prompt, data.adaptive_intervention.message_id);
+                            appendTutorMessage(data.adaptive_intervention.prompt, data.adaptive_intervention.message_id, null, null, false, true);
+                            scrollToBottom(true);
                         }
                     } catch (e) {
                         console.error("Failed transition feedback:", e);
@@ -759,6 +776,10 @@ document.addEventListener("DOMContentLoaded", () => {
     // 6. Spaced Retention Check-In
     // -------------------------------------------------------------
     async function checkRetention() {
+        if (sessionStorage.getItem("dsa_checkin_dismissed") === "true") {
+            retentionBanner.style.display = "none";
+            return;
+        }
         try {
             const resp = await fetch("/api/checkin");
             const data = await resp.json();
@@ -786,6 +807,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const prompt = `Can you ask me a quick 1-minute question to test my understanding of ${activeCheckinData.concept_name}?`;
         messageInput.value = prompt;
         retentionBanner.style.display = "none";
+        sessionStorage.setItem("dsa_checkin_dismissed", "true");
         sendMessage();
     });
 
@@ -796,6 +818,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     retentionDismissBtn.addEventListener("click", () => {
         retentionBanner.style.display = "none";
+        sessionStorage.setItem("dsa_checkin_dismissed", "true");
     });
 
     // -------------------------------------------------------------
@@ -901,9 +924,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // Trigger adaptive challenge / diagnostic question in chat if returned
         if (adaptiveData && adaptiveData.adaptive_intervention && adaptiveData.adaptive_intervention.prompt) {
-            appendTutorMessage(adaptiveData.adaptive_intervention.prompt, adaptiveData.adaptive_intervention.message_id);
+            appendTutorMessage(adaptiveData.adaptive_intervention.prompt, adaptiveData.adaptive_intervention.message_id, null, null, false, true);
+            scrollToBottom(true);
         }
 
+        sessionStorage.setItem("dsa_checkin_dismissed", "true");
         confidenceModal.style.display = "none";
         retentionBanner.style.display = "none";
         await loadMastery();
@@ -1003,10 +1028,18 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    function scrollToBottom() {
-        requestAnimationFrame(() => {
-            chatViewport.scrollTop = chatViewport.scrollHeight;
-        });
+    function scrollToBottom(smooth = false) {
+        const doScroll = () => {
+            if (chatViewport) {
+                chatViewport.scrollTo({
+                    top: chatViewport.scrollHeight,
+                    behavior: smooth ? "smooth" : "auto"
+                });
+            }
+        };
+        requestAnimationFrame(doScroll);
+        setTimeout(doScroll, 80);
+        setTimeout(doScroll, 250);
     }
 
     function escapeHtml(str) {

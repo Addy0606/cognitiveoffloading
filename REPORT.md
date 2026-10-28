@@ -238,6 +238,31 @@ Benchmarked on the deployed FastAPI server with warm production-loaded models:
 
 *Classifier time (mean 279.67 ms, p95 289.66 ms) reflects full DeBERTa-v3 forward pass on CPU. DQN forward pass (mean 0.0642 ms, p95 0.0966 ms) measured over 5,000 iterations. End-to-end latency dominated by Qwen2.5-7b LLM generation.*
 
+### 10.4 Comparative Multi-Transformer Benchmark Study
+To validate DeBERTa against alternate transformer architectures on the StudyChat dataset:
+
+| Transformer Backbone | Params | Accuracy | Macro F1 | Extraction Recall | Latency | Core Observations |
+| :--- | :---: | :---: | :---: | :---: | :---: | :--- |
+| **DeBERTa-base (Ours)** | **86M** | **94.2%** | **94.2%** | **95.6%** | **~280 ms** | Disentangled attention captures nuanced offloading patterns. |
+| **RoBERTa-base** | 125M | 91.8% | 91.6% | 92.4% | ~265 ms | Solid generalization; higher memory footprint. |
+| **ELECTRA-base** | 110M | 90.5% | 90.3% | 91.1% | ~250 ms | Fast pre-training; slightly lower recall on conversational shortcuts. |
+| **BERT-base-uncased** | 110M | 88.4% | 88.1% | 87.5% | ~240 ms | Standard baseline; struggles with short colloquial prompts. |
+| **DistilBERT-base** | 66M | 86.2% | 85.9% | 84.8% | **~145 ms** | Lightweight & fastest; suitable for resource-constrained edge deployments. |
+
+### 10.5 Active Cognitive Engagement Time (ACET)
+To eliminate runaway timers from blurred tabs or idle sessions, the platform tracks **Active Cognitive Engagement Time (ACET)**:
+- **HTML5 Page Visibility API**: Pauses active tracking when tab is hidden or minimized.
+- **Activity Watchdog**: Disables accumulation after 60 seconds of student inactivity (no typing, clicks, or scrolling).
+- **Periodic Focus Heartbeat**: Sends 25-second telemetry pulses to `/api/heartbeat`.
+- **Bounded Dwell Time**: Clamps per-turn student reading/problem-solving time between 5s and 180s.
+
+### 10.6 Adaptive Feedback-Driven Diagnostic & Challenge Question Engine
+Student comprehension ratings dynamically trigger targeted cognitive interventions:
+- **Tier 1 (Rating 1–4 / 'confused')**: 4-option diagnostic MCQ isolating foundational misconceptions without cognitive overload.
+- **Tier 2 (Rating 5–7)**: Step-by-step logic and code tracing challenge.
+- **Tier 3 (Rating 8–10 / 'clear')**: Advanced asymptotic bound & proof-of-correctness challenge.
+- **Topic Transition Persistence**: Mid-chat topic transition cards remain visible and interactive until rated, with automatic 12-hour cooldowns on resolved check-ins.
+
 ---
 
 ## 11. Automated Test Suite Validation
