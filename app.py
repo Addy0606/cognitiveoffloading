@@ -404,6 +404,12 @@ def get_concepts():
     return jsonify({"concepts": concepts})
 
 
+@app.route("/api/concepts/analytics", methods=["GET"])
+def get_concepts_analytics():
+    """Return all concepts with aggregated student analytics."""
+    return jsonify(memory.get_concept_analytics())
+
+
 @app.route("/api/status", methods=["GET"])
 def get_status():
     """System health check and loaded models status."""

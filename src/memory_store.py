@@ -115,10 +115,19 @@ DEFAULT_CONCEPTS = [
 # Keywords mapping for automatic concept detection from freeform queries
 CONCEPT_KEYWORDS = {
     "avl_trees": ["avl", "self-balancing", "balance factor", "rr rotation", "ll rotation", "lr rotation", "rl rotation", "tree rotation", "balanced bst"],
-    "binary_search_tree": ["bst", "binary search tree", "inorder traversal", "tree traversal", "tree insert", "tree delete"],
-    "reverse_linked_list": ["reverse linked list", "reverse a linked list", "reverse list", "reverse node", "reverse pointers"],
-    "cycle_detection": ["cycle detection", "floyd", "tortoise and hare", "detect cycle", "linked list cycle", "has cycle"],
-    "binary_search": ["binary search", "search sorted", "bisect", "log n search", "rotated array"],
+    "binary_search_tree": [
+        "binary tree", "binary trees", "bst", "binary search tree", "binary search trees",
+        "inorder traversal", "in-order", "preorder traversal", "pre-order",
+        "postorder traversal", "post-order", "tree traversal", "mirror image of binary tree",
+        "mirror tree", "invert binary tree", "tree insert", "tree delete", "tree height", "root node"
+    ],
+    "reverse_linked_list": [
+        "reverse linked list", "reverse a linked list", "reverse list", "reverse node",
+        "reverse pointers", "reversing a linked list", "reverse singly linked list",
+        "linked list", "linked lists", "singly linked list"
+    ],
+    "cycle_detection": ["cycle detection", "floyd", "tortoise and hare", "detect cycle", "linked list cycle", "has cycle", "cycle in linked list"],
+    "binary_search": ["binary search", "search sorted", "bisect", "log n search", "rotated array", "binary search algorithm"],
     "two_pointers": ["two pointers", "two sum", "pair sum", "opposite ends", "sliding window"],
     "knapsack_dp": ["knapsack", "0/1 knapsack", "knapsack problem", "weight and value", "dynamic programming knapsack"],
     "coin_change": ["coin change", "fewest coins", "min coins", "minimum coins", "coin denominations"],
@@ -194,15 +203,13 @@ class MemoryStore:
             )
             """)
 
-            # Seed default concepts if table is empty
-            cursor.execute("SELECT COUNT(*) as count FROM student_knowledge")
-            if cursor.fetchone()["count"] == 0:
-                for c in DEFAULT_CONCEPTS:
-                    cursor.execute("""
-                    INSERT OR IGNORE INTO student_knowledge 
-                    (concept_id, concept_name, category, difficulty, description, example, mastery_status, confidence_score)
-                    VALUES (?, ?, ?, ?, ?, ?, 'not_started', 0)
-                    """, (c["id"], c["name"], c["category"], c["difficulty"], c["description"], c["example"]))
+            # Ensure all default concepts exist in student_knowledge
+            for c in DEFAULT_CONCEPTS:
+                cursor.execute("""
+                INSERT OR IGNORE INTO student_knowledge 
+                (concept_id, concept_name, category, difficulty, description, example, mastery_status, confidence_score)
+                VALUES (?, ?, ?, ?, ?, ?, 'not_started', 0)
+                """, (c["id"], c["name"], c["category"], c["difficulty"], c["description"], c["example"]))
 
             conn.commit()
 
@@ -464,6 +471,136 @@ class MemoryStore:
             cursor = conn.cursor()
             cursor.execute("SELECT * FROM student_knowledge ORDER BY category ASC, concept_name ASC")
             return [dict(row) for row in cursor.fetchall()]
+
+    def get_concept_analytics(self) -> Dict[str, Any]:
+        """
+        Aggregate comprehensive student learning telemetry per topic:
+        - confidence score
+        - questions / turns learnt
+        - struggle interventions count
+        - engagement score
+        - cognitive offloading (extraction) rate
+        - estimated time spent (minutes)
+        - last studied at
+        """
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM student_knowledge ORDER BY category ASC, concept_name ASC")
+            concepts = [dict(row) for row in cursor.fetchall()]
+
+            # Fetch session and message telemetry per topic
+            cursor.execute("""
+            SELECT 
+                c.topic_id,
+                c.id as conversation_id,
+                MIN(m.created_at) as session_start,
+                MAX(m.created_at) as session_end,
+                COUNT(m.id) as message_count,
+                AVG(CASE WHEN m.engagement_score > 0 THEN m.engagement_score ELSE NULL END) as avg_engagement,
+                AVG(CASE WHEN m.extraction_score > 0 THEN m.extraction_score ELSE NULL END) as avg_extraction
+            FROM conversations c
+            JOIN messages m ON c.id = m.conversation_id
+            WHERE c.topic_id IS NOT NULL
+            GROUP BY c.topic_id, c.id
+            """)
+            session_rows = cursor.fetchall()
+
+            # Aggregate per topic_id
+            topic_stats = {}
+            for r in session_rows:
+                tid = r["topic_id"]
+                if tid not in topic_stats:
+                    topic_stats[tid] = {
+                        "total_time_seconds": 0.0,
+                        "message_count": 0,
+                        "engagement_sum": 0.0,
+                        "engagement_count": 0,
+                        "extraction_sum": 0.0,
+                        "extraction_count": 0,
+                    }
+
+                topic_stats[tid]["message_count"] += r["message_count"]
+
+                # Calculate duration in seconds
+                if r["session_start"] and r["session_end"]:
+                    try:
+                        t0 = datetime.fromisoformat(r["session_start"])
+                        t1 = datetime.fromisoformat(r["session_end"])
+                        duration = (t1 - t0).total_seconds()
+                        if duration <= 10 and r["message_count"] > 1:
+                            duration = r["message_count"] * 45
+                        topic_stats[tid]["total_time_seconds"] += max(duration, 30.0)
+                    except Exception:
+                        topic_stats[tid]["total_time_seconds"] += r["message_count"] * 45
+
+                if r["avg_engagement"] is not None:
+                    topic_stats[tid]["engagement_sum"] += r["avg_engagement"]
+                    topic_stats[tid]["engagement_count"] += 1
+
+                if r["avg_extraction"] is not None:
+                    topic_stats[tid]["extraction_sum"] += r["avg_extraction"]
+                    topic_stats[tid]["extraction_count"] += 1
+
+            enriched = []
+            total_time_overall = 0.0
+            total_turns_overall = 0
+            conf_list = []
+            eng_list = []
+
+            for c in concepts:
+                cid = c["concept_id"]
+                st = topic_stats.get(cid, {})
+
+                time_secs = st.get("total_time_seconds", 0.0)
+                if time_secs == 0 and (c.get("total_turns") or 0) > 0:
+                    time_secs = c["total_turns"] * 120.0
+
+                time_minutes = round(time_secs / 60.0, 1)
+                total_time_overall += time_secs
+                total_turns_overall += (c.get("total_turns") or 0)
+
+                if c.get("confidence_score") and c["confidence_score"] > 0:
+                    conf_list.append(c["confidence_score"])
+
+                avg_eng = None
+                if st.get("engagement_count", 0) > 0:
+                    avg_eng = round(st["engagement_sum"] / st["engagement_count"], 3)
+                    eng_list.append(avg_eng)
+
+                avg_ext = None
+                if st.get("extraction_count", 0) > 0:
+                    avg_ext = round(st["extraction_sum"] / st["extraction_count"], 3)
+
+                c_enriched = {
+                    **c,
+                    "time_spent_minutes": time_minutes,
+                    "avg_engagement": avg_eng,
+                    "avg_extraction": avg_ext,
+                    "messages_count": st.get("message_count", 0)
+                }
+                enriched.append(c_enriched)
+
+            mastered_count = sum(1 for c in enriched if c.get("mastery_status") == "mastered" or (c.get("confidence_score") or 0) >= 8)
+            struggling_count = sum(1 for c in enriched if c.get("mastery_status") == "struggling")
+            in_progress_count = sum(1 for c in enriched if c.get("mastery_status") == "in_progress")
+            not_started_count = sum(1 for c in enriched if c.get("mastery_status") in ("not_started", None) and (c.get("total_turns") or 0) == 0)
+
+            overall_summary = {
+                "total_topics": len(enriched),
+                "mastered_count": mastered_count,
+                "in_progress_count": in_progress_count,
+                "struggling_count": struggling_count,
+                "not_started_count": not_started_count,
+                "total_time_minutes": round(total_time_overall / 60.0, 1),
+                "total_turns": total_turns_overall,
+                "avg_confidence": round(sum(conf_list) / len(conf_list), 1) if conf_list else 0.0,
+                "avg_engagement": round(sum(eng_list) / len(eng_list), 3) if eng_list else 0.0,
+            }
+
+            return {
+                "summary": overall_summary,
+                "topics": enriched
+            }
 
     def get_concept(self, concept_id: str) -> Optional[Dict[str, Any]]:
         """Retrieve single concept details."""

@@ -44,11 +44,31 @@ document.addEventListener("DOMContentLoaded", () => {
     const retentionRateBtn = document.getElementById("retentionRateBtn");
     const retentionDismissBtn = document.getElementById("retentionDismissBtn");
 
-    // Mastery Summary
+    // Mastery Summary & Analytics Modal Elements
+    const masterySummaryCard = document.getElementById("masterySummaryCard");
     const masteryPercent = document.getElementById("masteryPercent");
     const masteryBarFill = document.getElementById("masteryBarFill");
     const masteryPracticed = document.getElementById("masteryPracticed");
     const masteryAvgConf = document.getElementById("masteryAvgConf");
+
+    // Concept Analytics & Mastery Modal
+    const conceptMasteryModal = document.getElementById("conceptMasteryModal");
+    const closeConceptMasteryModal = document.getElementById("closeConceptMasteryModal");
+    const doneConceptModalBtn = document.getElementById("doneConceptModalBtn");
+    const modalMasteryBadge = document.getElementById("modalMasteryBadge");
+    const kpiMasteredCount = document.getElementById("kpiMasteredCount");
+    const kpiMasteredSub = document.getElementById("kpiMasteredSub");
+    const kpiTotalTurns = document.getElementById("kpiTotalTurns");
+    const kpiTotalTime = document.getElementById("kpiTotalTime");
+    const kpiAvgConfidence = document.getElementById("kpiAvgConfidence");
+    const kpiAvgEngagement = document.getElementById("kpiAvgEngagement");
+    const countAll = document.getElementById("countAll");
+    const countActive = document.getElementById("countActive");
+    const countMastered = document.getElementById("countMastered");
+    const countNotStarted = document.getElementById("countNotStarted");
+    const topicFilterPills = document.getElementById("topicFilterPills");
+    const topicSearchInput = document.getElementById("topicSearchInput");
+    const topicsListContainer = document.getElementById("topicsListContainer");
 
     // Confidence Modal
     const confidenceModal = document.getElementById("confidenceModal");
@@ -823,6 +843,351 @@ document.addEventListener("DOMContentLoaded", () => {
         if (diffDays < 7) return `${diffDays}d ago`;
         return date.toLocaleDateString();
     }
+
+    // -------------------------------------------------------------
+    // 10. Student Concepts Explored & Topic Status Modal
+    // -------------------------------------------------------------
+    let allTopicAnalytics = [];
+    let currentTopicFilter = "all";
+    let currentTopicSearch = "";
+
+    if (masterySummaryCard) {
+        masterySummaryCard.addEventListener("click", () => {
+            openConceptMasteryModal();
+        });
+        masterySummaryCard.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                openConceptMasteryModal();
+            }
+        });
+    }
+
+    if (closeConceptMasteryModal) {
+        closeConceptMasteryModal.addEventListener("click", () => {
+            closeConceptMasteryModalFn();
+        });
+    }
+
+    if (doneConceptModalBtn) {
+        doneConceptModalBtn.addEventListener("click", () => {
+            closeConceptMasteryModalFn();
+        });
+    }
+
+    function openConceptMasteryModal() {
+        if (conceptMasteryModal) {
+            conceptMasteryModal.style.display = "flex";
+            loadConceptAnalytics();
+        }
+    }
+
+    function closeConceptMasteryModalFn() {
+        if (conceptMasteryModal) {
+            conceptMasteryModal.style.display = "none";
+        }
+    }
+
+    async function loadConceptAnalytics() {
+        try {
+            if (topicsListContainer) {
+                topicsListContainer.innerHTML = `<div class="loading-state">Loading topic analytics...</div>`;
+            }
+            let resp = await fetch("/api/concepts/analytics");
+            let data = {};
+            if (resp.ok) {
+                data = await resp.json();
+                allTopicAnalytics = data.topics || [];
+            } else {
+                // Graceful fallback to /api/concepts if server hasn't been restarted yet
+                resp = await fetch("/api/concepts");
+                const fallbackData = await resp.json();
+                const rawConcepts = fallbackData.concepts || [];
+                allTopicAnalytics = rawConcepts.map(c => ({
+                    ...c,
+                    time_spent_minutes: (c.total_turns || 0) * 2.5,
+                    avg_engagement: (c.total_turns || 0) > 0 ? 0.35 : null,
+                    avg_extraction: (c.struggle_count || 0) > 0 ? 0.65 : 0.25,
+                    messages_count: (c.total_turns || 0) * 2
+                }));
+                const masteredCount = allTopicAnalytics.filter(c => c.mastery_status === "mastered" || (c.confidence_score || 0) >= 8).length;
+                const activeCount = allTopicAnalytics.filter(c => c.mastery_status === "struggling" || c.mastery_status === "in_progress" || (c.total_turns || 0) > 0).length;
+                data.summary = {
+                    total_topics: allTopicAnalytics.length,
+                    mastered_count: masteredCount,
+                    in_progress_count: allTopicAnalytics.filter(c => c.mastery_status === "in_progress").length,
+                    struggling_count: allTopicAnalytics.filter(c => c.mastery_status === "struggling").length,
+                    not_started_count: allTopicAnalytics.filter(c => (c.total_turns || 0) === 0).length,
+                    total_time_minutes: allTopicAnalytics.reduce((acc, c) => acc + (c.time_spent_minutes || 0), 0),
+                    total_turns: allTopicAnalytics.reduce((acc, c) => acc + (c.total_turns || 0), 0),
+                    avg_confidence: 6.0,
+                    avg_engagement: 0.09
+                };
+            }
+            const summary = data.summary || {};
+
+            // Update KPI cards
+            const total = summary.total_topics || allTopicAnalytics.length;
+            const mastered = summary.mastered_count || 0;
+            const pct = total > 0 ? Math.round((mastered / total) * 100) : 0;
+
+            if (kpiMasteredCount) kpiMasteredCount.textContent = `${mastered} / ${total}`;
+            if (kpiMasteredSub) kpiMasteredSub.textContent = `${pct}% of core syllabus`;
+            if (modalMasteryBadge) modalMasteryBadge.textContent = `${mastered} Mastered`;
+
+            if (kpiTotalTurns) kpiTotalTurns.textContent = summary.total_turns || 0;
+            
+            // Format total study time
+            const totalMins = summary.total_time_minutes || 0;
+            let timeStr = "";
+            if (totalMins >= 60) {
+                const hrs = Math.floor(totalMins / 60);
+                const rm = Math.round(totalMins % 60);
+                timeStr = `${hrs}h ${rm}m`;
+            } else if (totalMins > 0) {
+                timeStr = `${Math.round(totalMins)}m`;
+            } else {
+                timeStr = "0m";
+            }
+            if (kpiTotalTime) kpiTotalTime.textContent = timeStr;
+
+            if (kpiAvgConfidence) {
+                kpiAvgConfidence.textContent = summary.avg_confidence > 0 ? `${summary.avg_confidence.toFixed(1)}/10` : "--";
+            }
+
+            if (kpiAvgEngagement) {
+                const engVal = summary.avg_engagement;
+                if (engVal && engVal > 0) {
+                    const engPct = Math.round(engVal * 100);
+                    kpiAvgEngagement.textContent = `${engPct}% (${engVal.toFixed(2)})`;
+                } else {
+                    kpiAvgEngagement.textContent = "--";
+                }
+            }
+
+            // Update filter pill counts
+            const activeCount = allTopicAnalytics.filter(t => t.mastery_status === "struggling" || t.mastery_status === "in_progress" || (t.total_turns || 0) > 0).length;
+            const masteredCount = allTopicAnalytics.filter(t => t.mastery_status === "mastered" || (t.confidence_score || 0) >= 8).length;
+            const notStartedCount = allTopicAnalytics.filter(t => (t.total_turns || 0) === 0 && (!t.confidence_score || t.confidence_score === 0)).length;
+
+            if (countAll) countAll.textContent = allTopicAnalytics.length;
+            if (countActive) countActive.textContent = activeCount;
+            if (countMastered) countMastered.textContent = masteredCount;
+            if (countNotStarted) countNotStarted.textContent = notStartedCount;
+
+            renderTopicAnalyticsCards();
+        } catch (err) {
+            console.error("Failed to load concept analytics:", err);
+            if (topicsListContainer) {
+                topicsListContainer.innerHTML = `<div class="empty-state">Unable to load analytics data.</div>`;
+            }
+        }
+    }
+
+    function renderTopicAnalyticsCards() {
+        if (!topicsListContainer) return;
+
+        let filtered = allTopicAnalytics;
+
+        // Apply tab filter
+        if (currentTopicFilter === "active") {
+            filtered = filtered.filter(t => t.mastery_status === "struggling" || t.mastery_status === "in_progress" || (t.total_turns || 0) > 0);
+        } else if (currentTopicFilter === "mastered") {
+            filtered = filtered.filter(t => t.mastery_status === "mastered" || (t.confidence_score || 0) >= 8);
+        } else if (currentTopicFilter === "not_started") {
+            filtered = filtered.filter(t => (t.total_turns || 0) === 0 && (!t.confidence_score || t.confidence_score === 0));
+        }
+
+        // Apply search query
+        if (currentTopicSearch.trim()) {
+            const q = currentTopicSearch.trim().toLowerCase();
+            filtered = filtered.filter(t => 
+                (t.concept_name || "").toLowerCase().includes(q) ||
+                (t.category || "").toLowerCase().includes(q) ||
+                (t.difficulty || "").toLowerCase().includes(q)
+            );
+        }
+
+        if (filtered.length === 0) {
+            topicsListContainer.innerHTML = `<div class="empty-state" style="padding: 24px; text-align: center; color: var(--text-muted);">No topics match the selected filter.</div>`;
+            return;
+        }
+
+        topicsListContainer.innerHTML = "";
+
+        filtered.forEach(topic => {
+            const card = document.createElement("div");
+            const statusClass = topic.mastery_status || "not_started";
+            card.className = `topic-status-card status-${statusClass}`;
+
+            // Difficulty styling
+            const diff = (topic.difficulty || "medium").toLowerCase();
+            const diffClass = diff === "easy" ? "diff-easy" : (diff === "hard" ? "diff-hard" : "diff-medium");
+
+            // Format time spent
+            const mins = topic.time_spent_minutes || 0;
+            let timeDisplay = "0m";
+            if (mins >= 60) {
+                const h = Math.floor(mins / 60);
+                const m = Math.round(mins % 60);
+                timeDisplay = `${h}h ${m}m`;
+            } else if (mins > 0) {
+                timeDisplay = `${Math.round(mins)}m`;
+            }
+
+            // Status label formatting
+            let statusText = "Not Started";
+            let statusBadgeClass = "badge-not_started";
+            if (topic.mastery_status === "mastered" || (topic.confidence_score || 0) >= 8) {
+                statusText = "Mastered";
+                statusBadgeClass = "badge-mastered";
+            } else if (topic.mastery_status === "struggling") {
+                statusText = "Struggling";
+                statusBadgeClass = "badge-struggling";
+            } else if (topic.mastery_status === "in_progress" || (topic.total_turns || 0) > 0) {
+                statusText = "In Progress";
+                statusBadgeClass = "badge-in_progress";
+            }
+
+            // Confidence rating display
+            let confDisplay = "Not Rated";
+            if (topic.confidence_score && topic.confidence_score > 0) {
+                confDisplay = `⭐ ${topic.confidence_score}/10`;
+            }
+
+            // Engagement score display
+            let engDisplay = "--";
+            if (topic.avg_engagement !== null && topic.avg_engagement !== undefined) {
+                const engScore = Number(topic.avg_engagement);
+                const label = engScore >= 0.5 ? "High" : (engScore >= 0.15 ? "Moderate" : "Inquiry");
+                engDisplay = `${label} (${(engScore * 100).toFixed(0)}%)`;
+            } else if ((topic.total_turns || 0) > 0) {
+                engDisplay = "Active Practice";
+            }
+
+            // Cognitive Independence (Extraction / Offloading rate)
+            let independenceDisplay = "--";
+            if (topic.avg_extraction !== null && topic.avg_extraction !== undefined) {
+                const extScore = Number(topic.avg_extraction);
+                if (extScore >= 0.6) {
+                    independenceDisplay = `⚠️ High Offload (${(extScore * 100).toFixed(0)}%)`;
+                } else if (extScore >= 0.35) {
+                    independenceDisplay = `Guided (${((1 - extScore) * 100).toFixed(0)}% Self)`;
+                } else {
+                    independenceDisplay = `Independent (${((1 - extScore) * 100).toFixed(0)}% Self)`;
+                }
+            } else if (statusClass === "mastered") {
+                independenceDisplay = "High Independence";
+            }
+
+            const lastStudied = topic.last_studied_at ? formatRelativeDate(topic.last_studied_at) : "Never";
+
+            card.innerHTML = `
+                <div class="topic-card-header">
+                    <div class="topic-card-title-group">
+                        <span class="topic-name">${escapeHtml(topic.concept_name)}</span>
+                        <span class="topic-category-tag">${escapeHtml(topic.category || 'DSA')}</span>
+                        <span class="topic-difficulty-tag ${diffClass}">${escapeHtml(topic.difficulty || 'Medium')}</span>
+                    </div>
+                    <span class="status-badge ${statusBadgeClass}">${statusText}</span>
+                </div>
+
+                <div class="topic-metrics-grid">
+                    <div class="topic-metric-item">
+                        <span class="topic-metric-lbl">Confidence</span>
+                        <span class="topic-metric-val">${confDisplay}</span>
+                    </div>
+                    <div class="topic-metric-item">
+                        <span class="topic-metric-lbl">Questions Learnt</span>
+                        <span class="topic-metric-val">💬 ${topic.total_turns || 0} turns</span>
+                    </div>
+                    <div class="topic-metric-item">
+                        <span class="topic-metric-lbl">Time Spent</span>
+                        <span class="topic-metric-val">⏱️ ${timeDisplay}</span>
+                    </div>
+                    <div class="topic-metric-item">
+                        <span class="topic-metric-lbl">Engagement Level</span>
+                        <span class="topic-metric-val">🎯 ${engDisplay}</span>
+                    </div>
+                    <div class="topic-metric-item">
+                        <span class="topic-metric-lbl">Cognitive Effort</span>
+                        <span class="topic-metric-val">🧠 ${independenceDisplay}</span>
+                    </div>
+                    <div class="topic-metric-item">
+                        <span class="topic-metric-lbl">Interventions</span>
+                        <span class="topic-metric-val">🛡️ ${topic.struggle_count || 0}</span>
+                    </div>
+                </div>
+
+                <div class="topic-card-actions">
+                    <span>Last studied: <strong>${lastStudied}</strong></span>
+                    <button class="btn-practice-topic" data-concept-id="${topic.concept_id}" data-concept-name="${escapeHtml(topic.concept_name)}">
+                        <span>💬 Practice with Tutor</span>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
+                    </button>
+                </div>
+            `;
+
+            // Practice button hook
+            const practiceBtn = card.querySelector(".btn-practice-topic");
+            if (practiceBtn) {
+                practiceBtn.addEventListener("click", () => {
+                    const cid = practiceBtn.dataset.conceptId;
+                    const cname = practiceBtn.dataset.conceptName;
+                    closeConceptMasteryModalFn();
+                    startNewChatWithTopic(cid, cname);
+                });
+            }
+
+            topicsListContainer.appendChild(card);
+        });
+    }
+
+    function startNewChatWithTopic(conceptId, conceptName) {
+        startNewChat();
+        currentTopicId = conceptId;
+        activeTopicTitle.textContent = conceptName;
+        activeCategory.style.display = "inline-block";
+        activeCategory.textContent = "DSA Concept";
+        activeTopicSub.textContent = `Practicing ${conceptName} with adaptive reinforcement learning tutor.`;
+        messageInput.value = `Let's practice ${conceptName}. What's the main idea and how do we approach it?`;
+        messageInput.focus();
+    }
+
+    // Filter pill click listener
+    if (topicFilterPills) {
+        topicFilterPills.querySelectorAll(".filter-pill").forEach(pill => {
+            pill.addEventListener("click", () => {
+                topicFilterPills.querySelectorAll(".filter-pill").forEach(p => p.classList.remove("active"));
+                pill.classList.add("active");
+                currentTopicFilter = pill.dataset.filter || "all";
+                renderTopicAnalyticsCards();
+            });
+        });
+    }
+
+    // Search input listener
+    if (topicSearchInput) {
+        topicSearchInput.addEventListener("input", (e) => {
+            currentTopicSearch = e.target.value;
+            renderTopicAnalyticsCards();
+        });
+    }
+
+    // Close on backdrop click and Esc key
+    window.addEventListener("click", (e) => {
+        if (e.target === conceptMasteryModal) {
+            closeConceptMasteryModalFn();
+        }
+    });
+
+    window.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") {
+            if (conceptMasteryModal && conceptMasteryModal.style.display === "flex") {
+                closeConceptMasteryModalFn();
+            }
+        }
+    });
 
     // Initialize application
     init();

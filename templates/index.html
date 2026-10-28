@@ -59,9 +59,12 @@
 
             <!-- Sidebar Footer: Concept Mastery & Telemetry -->
             <div class="sidebar-footer">
-                <div class="mastery-summary-card" id="masterySummaryCard">
+                <div class="mastery-summary-card" id="masterySummaryCard" role="button" tabindex="0" title="Click to view detailed topic breakdown & analytics">
                     <div class="mastery-header">
-                        <span class="mastery-title">Concepts Explored</span>
+                        <span class="mastery-title">
+                            Concepts Explored
+                            <svg class="mastery-expand-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                        </span>
                         <span class="mastery-percent" id="masteryPercent">0 Mastered</span>
                     </div>
                     <div class="mastery-bar-bg">
@@ -70,6 +73,9 @@
                     <div class="mastery-stats">
                         <span id="masteryPracticed">0 topics studied</span>
                         <span id="masteryAvgConf">Avg: --/10</span>
+                    </div>
+                    <div class="mastery-card-footer-hint">
+                        <span>📊 Click for student status breakdown</span>
                     </div>
                 </div>
 
@@ -256,6 +262,78 @@
             <div class="modal-footer">
                 <button class="btn btn-outline" id="cancelConfidenceBtn">Cancel</button>
                 <button class="btn btn-primary" id="saveConfidenceBtn">Save Mastery State</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- CONCEPT EXPLORED & TOPIC MASTERY MODAL                        -->
+    <!-- ============================================================ -->
+    <div class="modal-backdrop" id="conceptMasteryModal" style="display: none;">
+        <div class="modal-card modal-extra-large">
+            <div class="modal-header">
+                <div>
+                    <div class="modal-title-with-badge">
+                        <h3>DSA Concepts & Student Topic Status</h3>
+                        <span class="badge badge-emerald" id="modalMasteryBadge">0 Mastered</span>
+                    </div>
+                    <p class="modal-sub">Real-time status on confidence ratings, questions learnt, time spent, and reasoning engagement</p>
+                </div>
+                <button class="modal-close" id="closeConceptMasteryModal" aria-label="Close modal">&times;</button>
+            </div>
+
+            <div class="modal-body modal-scrollable-body">
+                <!-- Overview Stats Grid -->
+                <div class="analytics-kpi-grid">
+                    <div class="kpi-card">
+                        <span class="kpi-label">Mastery Progress</span>
+                        <div class="kpi-val" id="kpiMasteredCount">--</div>
+                        <span class="kpi-sub" id="kpiMasteredSub">0% of core topics</span>
+                    </div>
+                    <div class="kpi-card">
+                        <span class="kpi-label">Questions & Turns</span>
+                        <div class="kpi-val text-blue" id="kpiTotalTurns">--</div>
+                        <span class="kpi-sub">Total problem-solving turns</span>
+                    </div>
+                    <div class="kpi-card">
+                        <span class="kpi-label">Time Spent</span>
+                        <div class="kpi-val text-purple" id="kpiTotalTime">--</div>
+                        <span class="kpi-sub">Across all topic sessions</span>
+                    </div>
+                    <div class="kpi-card">
+                        <span class="kpi-label">Avg Confidence</span>
+                        <div class="kpi-val text-amber" id="kpiAvgConfidence">--</div>
+                        <span class="kpi-sub">Self-rated understanding</span>
+                    </div>
+                    <div class="kpi-card">
+                        <span class="kpi-label">Engagement Score</span>
+                        <div class="kpi-val text-indigo" id="kpiAvgEngagement">--</div>
+                        <span class="kpi-sub">Reasoning effort signal</span>
+                    </div>
+                </div>
+
+                <!-- Filters & Search Toolbar -->
+                <div class="topics-toolbar">
+                    <div class="filter-pills" id="topicFilterPills">
+                        <button class="filter-pill active" data-filter="all">All Topics (<span id="countAll">0</span>)</button>
+                        <button class="filter-pill" data-filter="active">In Progress / Struggling (<span id="countActive">0</span>)</button>
+                        <button class="filter-pill" data-filter="mastered">Mastered (<span id="countMastered">0</span>)</button>
+                        <button class="filter-pill" data-filter="not_started">Not Started (<span id="countNotStarted">0</span>)</button>
+                    </div>
+                    <div class="topic-search-wrap">
+                        <input type="text" id="topicSearchInput" placeholder="Filter by topic or category..." class="topic-search-input">
+                    </div>
+                </div>
+
+                <!-- Topic Cards List -->
+                <div class="topics-list-container" id="topicsListContainer">
+                    <div class="loading-state">Loading topic analytics...</div>
+                </div>
+            </div>
+
+            <div class="modal-footer modal-footer-spaced">
+                <span class="modal-footnote">💡 Student status updates in real-time as you chat and submit comprehension feedback.</span>
+                <button class="btn btn-primary" id="doneConceptModalBtn">Done</button>
             </div>
         </div>
     </div>

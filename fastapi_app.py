@@ -261,16 +261,42 @@ async def chat(req: ChatRequest):
             conv_id = memory.create_conversation(topic_id=topic_id)
             conv = memory.get_conversation(conv_id)
 
-    # Auto concept detection
+    # Auto concept detection & mid-chat topic transition
     detected_concept = memory.detect_concept(message)
-    if detected_concept and not topic_id:
-        topic_id = detected_concept["concept_id"]
-        with memory._get_connection() as conn:
-            conn.execute(
-                "UPDATE conversations SET topic_id = ?, topic_name = ? WHERE id = ?",
-                (topic_id, detected_concept["concept_name"], conv_id)
-            )
-            conn.commit()
+    topic_switched = False
+    old_topic_name = conv.get("topic_name") or ""
+    old_topic_id = conv.get("topic_id")
+
+    # If the conversation did not have a topic_id explicitly set, infer from the title or prior messages
+    if not old_topic_id and conv and conv.get("title"):
+        inferred = memory.detect_concept(conv.get("title", ""))
+        if inferred:
+            old_topic_id = inferred["concept_id"]
+            old_topic_name = inferred["concept_name"]
+
+    if detected_concept:
+        if old_topic_id and detected_concept["concept_id"] != old_topic_id:
+            # Topic switch detected mid-conversation!
+            topic_switched = True
+            topic_id = detected_concept["concept_id"]
+            with memory._get_connection() as conn:
+                conn.execute(
+                    "UPDATE conversations SET topic_id = ?, topic_name = ? WHERE id = ?",
+                    (topic_id, detected_concept["concept_name"], conv_id)
+                )
+                conn.commit()
+            # Reset tutor struggle counter so previous topic struggle doesn't bleed into new topic
+            tutor.struggle_turns = 0
+            tutor.is_post_break = True
+            logger.info(f"Topic switched mid-chat from '{old_topic_name}' to '{detected_concept['concept_name']}'")
+        elif not topic_id:
+            topic_id = detected_concept["concept_id"]
+            with memory._get_connection() as conn:
+                conn.execute(
+                    "UPDATE conversations SET topic_id = ?, topic_name = ? WHERE id = ?",
+                    (topic_id, detected_concept["concept_name"], conv_id)
+                )
+                conn.commit()
 
     # Smart auto-title
     updated_title = None
@@ -300,6 +326,15 @@ async def chat(req: ChatRequest):
 
     # Student learning context & feedback adaptation
     student_context = ""
+    if topic_switched and old_topic_name:
+        student_context += (
+            f"TOPIC TRANSITION NOTICE: The student was previously working on '{old_topic_name}', "
+            f"and has just asked about a new topic: '{topic_name}'. "
+            f"You MUST:\n"
+            f"1. Acknowledge the topic change smoothly.\n"
+            f"2. Briefly check if they feel satisfied/okay setting '{old_topic_name}' aside for now.\n"
+            f"3. Directly and clearly explain their new question about '{topic_name}'.\n\n"
+        )
     if history_messages:
         last_tutor_msg = next((m for m in reversed(history_messages) if m["role"] == "tutor"), None)
         if last_tutor_msg:
@@ -400,6 +435,10 @@ async def get_concepts():
     concepts = memory.get_all_concepts()
     return {"concepts": concepts}
 
+@app.get("/api/concepts/analytics")
+async def get_concepts_analytics():
+    return memory.get_concept_analytics()
+
 @app.get("/api/status")
 async def get_status():
     return {
@@ -424,4 +463,4 @@ if __name__ == "__main__":
     print("  [*] Swagger Docs: http://127.0.0.1:5000/docs")
     print("  [*] Telemetry: Real-time RL inference logs streamed below")
     print("=" * 68 + "\n")
-    uvicorn.run("fastapi_app:app", host="127.0.0.1", port=port, reload=False)
+    uvicorn.run("fastapi_app:app", host="127.0.0.1", port=port, reload=True)
