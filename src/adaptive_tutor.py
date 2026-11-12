@@ -210,6 +210,8 @@ class AdaptiveTutor:
         )
 
         # Step 4: Get Q-values and select action
+        # policy_action_id = raw RL choice before guardrails (None when the policy isn't used)
+        policy_action_id = None
         if is_greeting:
             q_values = [0.0, 0.0, 0.0, 0.0]
             action_id = -2
@@ -230,9 +232,9 @@ class AdaptiveTutor:
             )
         elif use_policy:
             q_values = self.rl_trainer.get_q_values(state)
-            action_id = self.rl_trainer.select_action(state, greedy=True)
+            policy_action_id = self.rl_trainer.select_action(state, greedy=True)
             action_id = self._apply_guardrails(
-                action_id,
+                policy_action_id,
                 student_message,
                 extraction_score,
                 engagement_score,
@@ -295,6 +297,8 @@ class AdaptiveTutor:
             "engagement_breakdown": engagement_details,
             "action_taken": action_name,
             "action_id": action_id,
+            "policy_action_id": policy_action_id,
+            "guardrail_override": policy_action_id is not None and policy_action_id != action_id,
             "q_values": q_values,
             "tutor_response": tutor_response,
             "llm_provider": self.llm_provider,

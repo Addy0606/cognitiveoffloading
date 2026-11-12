@@ -133,6 +133,8 @@ class TestAdaptiveTutorMocked:
             "engagement_breakdown",
             "action_taken",
             "action_id",
+            "policy_action_id",
+            "guardrail_override",
             "q_values",
             "tutor_response",
             "llm_provider",

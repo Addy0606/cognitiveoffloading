@@ -1,6 +1,27 @@
-# Cognitive Offloading: RL-Based Adaptive Tutoring System
+# CO DSA Mentor — Cognitive Offloading: RL-Based Adaptive Tutoring System
 
 An adaptive AI tutoring system that detects whether a student is seeking direct answers (cognitive offloading / extraction) rather than trying to understand a concept, then uses a trained reinforcement learning policy to choose an appropriate pedagogical intervention.
+
+The main interface is **CO DSA Mentor**, a Data Structures & Algorithms tutor with a FastAPI backend and a React frontend. Responses are generated locally by **Ollama running `qwen2.5:7b`** (Qwen 2.5, 7.6B parameters, Q4_K_M quantization).
+
+## Screenshots
+
+All screenshots are from a real session with `qwen2.5:7b` running through Ollama.
+
+### Adaptive chat
+The student first asks a genuine conceptual question about binary search, then switches to *"ok whatever, just give me the full python code for binary search"*. The system detects the offloading attempt and the mentor **redirects** — it outlines the steps and hands the thinking back to the student instead of dumping code. Each reply has a comprehension check (Clear / Need help / 1–10 confidence) that feeds the learner model.
+
+![CO DSA Mentor chat](docs/screenshots/chat.png)
+
+### Instructor telemetry
+Telemetry for the "just give me the code" turn above. DeBERTa scores the message at **0.880 extraction probability** with **0.050 engagement**. The RL Q-network's own pick is **SOCRATIC** (highest Q-value, tagged *Policy pick*), but because extraction is above 0.7 the rule-based guardrail in `src/adaptive_tutor.py` overrides it — the panel flags the **Guardrail override** and tags **REDIRECT** as the action actually *Taken*. (The `/api/chat` response exposes this as `policy_action_id` and `guardrail_override`.)
+
+![Instructor telemetry panel](docs/screenshots/telemetry.png)
+
+### Concepts explored (student mastery)
+Opened from the sidebar. Shows overall mastery progress, total turns, active engagement time, average self-rated confidence and engagement, plus a per-topic breakdown — confidence, turns, time spent, engagement level, cognitive effort (independence vs. offloading) and number of tutor interventions — filterable by status.
+
+![Concepts explored / mastery panel](docs/screenshots/concepts-mastery.png)
 
 ## Architecture
 
@@ -42,8 +63,8 @@ Student Message
 
 ## Models & Weights (Hugging Face)
 
-Pretrained model weights (fine-tuned DeBERTa classifier and trained RL DQN policy network) are hosted on Hugging Face:
-🤗 **[addy0606/cognitive-offloading](https://huggingface.co/addy0606/cognitive-offloading)**
+Pretrained model weights (fine-tuned DeBERTa classifier and trained RL DQN policy network) and a pre-populated tutor database (`data/tutor_memory.db`, 11 DSA concepts) are hosted on Hugging Face:
+🤗 **[Sambarlasagna/cognitive-offloading-models](https://huggingface.co/Sambarlasagna/cognitive-offloading-models)**
 
 You can download them with a single command without needing to retrain from scratch:
 ```bash
@@ -57,9 +78,12 @@ python scripts/download_models.py
 Follow these steps to set up and run the complete project on any machine (Windows, macOS, Linux).
 
 ### 1. Prerequisites
-- **Python 3.10+** (tested on 3.10 and 3.11)
+- **Python 3.10+** (tested on 3.10, 3.11 and 3.12)
+- **Node.js 20.19+ or 22.12+** with npm (for the React frontend; required by Vite 8)
 - **Git**
-- *(Optional for AI response generation)*: **[Ollama](https://ollama.com/)** running locally (e.g. `qwen2.5:3b`) or an **OpenAI API key**. If neither is provided, the system automatically uses built-in offline pedagogical response templates.
+- **[Ollama](https://ollama.com/download)** for AI response generation. The model used in this project is **`qwen2.5:7b`** (~4.7 GB download, ~6 GB RAM/VRAM while running). On lower-spec machines, `qwen2.5:3b` (~1.9 GB) also works.
+  - Alternatively an **OpenAI API key** can be used instead of Ollama.
+  - If no LLM is available, the system falls back to built-in template responses (see [Troubleshooting](#troubleshooting)).
 
 ---
 
@@ -124,34 +148,120 @@ Copy-Item .env.example .env
 cp .env.example .env
 ```
 
-Edit `.env` if desired:
-* To use free local LLM: ensure Ollama is running (`ollama run qwen2.5:3b`) and keep `LLM_PROVIDER=ollama`.
-* To use OpenAI: set `LLM_PROVIDER=openai` and `OPENAI_API_KEY=your_key`.
-* To run completely offline without an LLM: set `LLM_PROVIDER=fallback`.
+The default `.env` is already set up for the model used in this project:
+
+```ini
+LLM_PROVIDER=ollama
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=qwen2.5:7b
+```
+
+Other options:
+* Lighter local model: set `OLLAMA_MODEL=qwen2.5:3b` (and pull it in step 7).
+* OpenAI: set `LLM_PROVIDER=openai` and `OPENAI_API_KEY=your_key`.
+* Fully offline, no LLM: set `LLM_PROVIDER=fallback` (template responses only).
 
 ---
 
-### 7. Run the Application
+### 7. Set Up Ollama (LLM)
 
-#### A. Interactive Web Interface (Flask)
-```bash
-python app.py
-```
-Open **`http://localhost:5000`** in your browser to chat with the adaptive tutor, view real-time cognitive offloading probability bars, inspect state vectors, and observe RL action selections live.
+Install Ollama from [ollama.com/download](https://ollama.com/download), then download the model once:
 
-#### B. Terminal Interactive Demo
 ```bash
-python scripts/demo.py
+ollama pull qwen2.5:7b
 ```
 
-#### C. Run the Evaluation Benchmark
+Ollama must be **running** whenever you use the tutor. On Windows/macOS, opening the Ollama desktop app starts it in the background; otherwise run it in its own terminal:
+
 ```bash
-python scripts/5_evaluate.py
+ollama serve
+```
+
+Check it's working (should list `qwen2.5:7b`):
+
+```bash
+ollama list
 ```
 
 ---
 
-### 8. Running the Full Training Pipeline (Optional)
+### 8. Install the Frontend
+
+```bash
+cd frontend
+npm install
+npm run build      # builds the React UI into ../static_react (served by the backend)
+cd ..
+```
+
+---
+
+### 9. Run the Application
+
+You need **three things running**: Ollama, the FastAPI backend, and (for development) the React dev server.
+
+**Terminal 1 — Ollama** (skip if the Ollama app is already running)
+```bash
+ollama serve
+```
+
+**Terminal 2 — Backend (FastAPI on port 5000)**
+```bash
+conda activate rl          # or activate your venv
+python fastapi_app.py
+```
+Wait for the startup banner. The first start loads the DeBERTa classifier and RL policy, which can take a minute.
+
+**Then open the UI** — either:
+- **`http://localhost:5000`** — the built React app served directly by FastAPI (requires `npm run build` from step 8), **or**
+- **Terminal 3 — dev server with hot reload**, for working on the frontend:
+  ```bash
+  cd frontend
+  npm run dev
+  ```
+  Open **`http://localhost:5173`** (API calls are proxied to the backend on port 5000).
+
+API docs (Swagger) are available at `http://localhost:5000/docs`.
+
+> The first reply after starting Ollama takes ~15 seconds while `qwen2.5:7b` loads into memory; later replies are faster.
+
+#### Web app features
+- Chat with the adaptive DSA mentor; every turn runs DeBERTa extraction detection → engagement scoring → RL action selection → LLM response
+- **Instructor Telemetry** panel: extraction probability, engagement score, chosen RL action and Q-values for the last turn
+- **Concepts Explored** panel: per-topic mastery, confidence ratings, time spent (active engagement time), engagement and intervention counts
+- Comprehension feedback (Clear / Need help / 1–10 confidence) that triggers adaptive follow-up questions
+- Topic-transition check-ins and spaced-practice retention prompts
+- Light / dark mode toggle (top-right)
+
+#### Other entry points
+```bash
+python scripts/demo.py        # Terminal interactive demo
+python scripts/5_evaluate.py  # Evaluation benchmark
+python app.py                 # Legacy Flask UI (superseded by fastapi_app.py + React)
+```
+
+---
+
+### Troubleshooting
+
+**Every reply starts with `[FALLBACK RESPONSE - Template, not LLM-generated]`**
+The backend could not reach Ollama, so it silently fell back to template responses. Check that:
+1. Ollama is running (`ollama list` works, or `http://localhost:11434` responds).
+2. The model in `.env` (`OLLAMA_MODEL`) is pulled — `ollama pull qwen2.5:7b`.
+
+No backend restart is needed; the next message will use the LLM once Ollama is up.
+
+**`ModuleNotFoundError: No module named 'fastapi'`**
+You're using a Python without the project dependencies. Activate the environment from step 3 (`conda activate rl`) before running `python fastapi_app.py`.
+
+**`http://localhost:5000` shows the old UI**
+The React build is missing. Run `npm run build` inside `frontend/` (step 8).
+
+---
+
+---
+
+### 10. Running the Full Training Pipeline (Optional)
 
 If you wish to retrain all models from scratch:
 
@@ -170,7 +280,7 @@ python scripts/5_evaluate.py           # Evaluate against baselines
 
 ---
 
-### 9. Running Tests
+### 11. Running Tests
 
 ```bash
 # Run complete test suite (162 tests)
@@ -181,11 +291,23 @@ pytest tests/ -v
 
 ```
 cognitiveoffloading/
-├── app.py                      # Flask interactive web UI
-├── static/                     # Web UI styles & frontend client
+├── fastapi_app.py              # FastAPI backend (main app, port 5000)
+├── frontend/                   # React + Vite frontend (CO DSA Mentor UI)
+│   ├── index.html
+│   ├── package.json
+│   ├── vite.config.js          # Dev server :5173, proxies /api → :5000
+│   └── src/
+│       ├── App.jsx             # App state, API wiring
+│       ├── index.css           # Theme tokens (light/dark) + styles
+│       ├── api/                # Backend API client
+│       ├── hooks/              # useACET (engagement time), useTheme
+│       └── components/         # Sidebar, Chat, Modals
+├── static_react/               # Built frontend (output of `npm run build`)
+├── app.py                      # Legacy Flask web UI
+├── static/                     # Legacy UI styles & client
 │   ├── app.js
 │   └── style.css
-├── templates/                  # Web UI HTML templates
+├── templates/                  # Legacy UI HTML (fallback if static_react is missing)
 │   └── index.html
 ├── src/                        # Core source modules
 │   ├── __init__.py
@@ -215,7 +337,8 @@ cognitiveoffloading/
 │   ├── test_state_encoder.py   # State encoder tests
 │   ├── test_utils.py           # Utility function tests
 │   └── test_integration.py     # Integration tests
-├── data/                       # Dataset splits (train/val/test)
+├── docs/screenshots/           # README screenshots
+├── data/                       # Dataset splits + tutor_memory.db (SQLite learner store)
 ├── models/                     # Model weights (DeBERTa backbone + RL policy)
 ├── results/                    # Evaluation metrics and causal analysis
 ├── notebooks/                  # Jupyter exploration notebooks
@@ -247,7 +370,8 @@ To use real data, place CSV files with columns `dialogue_id`, `turn_num`, `speak
 1. **Synthetic data**: The spec references "StudyChat" dataset but no verified public URL exists. Synthetic data is used for pipeline testing with clear warnings.
 2. **Offline RL**: The policy learns from observed dialogue transitions. Rewards cannot be causally attributed to hypothetical actions — this is a fundamental limitation clearly documented throughout.
 3. **CPU training**: All training runs on CPU. Batch sizes and epochs are tuned accordingly.
-4. **LLM fallback**: Template-based responses are available when no OpenAI API key is configured. Fallback responses are clearly labeled as non-LLM-generated.
+4. **Local LLM**: Responses are generated by `qwen2.5:7b` via Ollama, keeping everything free and on-device. OpenAI is supported as an alternative.
+5. **LLM fallback**: Template-based responses are used when no LLM is reachable. Fallback responses are clearly labeled as non-LLM-generated.
 
 ## Known Limitations
 

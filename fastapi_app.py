@@ -40,8 +40,13 @@ app = FastAPI(
     version="2.0.0"
 )
 
-# Mount static folder
+# Mount static folders
 app.mount("/static", StaticFiles(directory=str(ROOT_DIR / "static")), name="static")
+
+# Mount React built assets if present
+react_dist = ROOT_DIR / "static_react"
+if (react_dist / "assets").exists():
+    app.mount("/assets", StaticFiles(directory=str(react_dist / "assets")), name="react-assets")
 
 # Initialize SQLite Memory Store
 memory = MemoryStore()
@@ -146,6 +151,9 @@ class ResolveCheckinRequest(BaseModel):
 # -------------------------------------------------------------
 @app.get("/", response_class=HTMLResponse)
 async def get_index():
+    react_index = ROOT_DIR / "static_react" / "index.html"
+    if react_index.exists():
+        return HTMLResponse(content=react_index.read_text(encoding="utf-8"))
     index_file = ROOT_DIR / "templates" / "index.html"
     return HTMLResponse(content=index_file.read_text(encoding="utf-8"))
 
@@ -499,6 +507,8 @@ async def chat(req: ChatRequest):
             "show_feedback": should_show_feedback,
             "action_taken": action_taken,
             "action_id": action_id,
+            "policy_action_id": result.get("policy_action_id"),
+            "guardrail_override": bool(result.get("guardrail_override", False)),
             "extraction_score": extraction_score,
             "engagement_score": engagement_score,
             "q_values": q_vals,
@@ -546,4 +556,4 @@ if __name__ == "__main__":
     print("  [*] Swagger Docs: http://127.0.0.1:5000/docs")
     print("  [*] Telemetry: Real-time RL inference logs streamed below")
     print("=" * 68 + "\n")
-    uvicorn.run("fastapi_app:app", host="127.0.0.1", port=port, reload=True)
+    uvicorn.run("fastapi_app:app", host="127.0.0.1", port=port, reload=False)
